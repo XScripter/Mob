@@ -11,7 +11,7 @@ Mob 不依赖任何第三方框架，可以按照 AMD 和 CommonJS 模块化方�
 
 ## 文档
 
-### 日志打印（`Mob.Logger` 或 `Mob.requireModule('mob/logger')`）
+### 日志打印（`Mob.Logger`）
 
 #### useDefaults
 使用默认方式（将日志打印到控制台）打印日志。
