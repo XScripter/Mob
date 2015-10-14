@@ -3,7 +3,7 @@
 > 轻量级的、稳定的、可配置的 HTML5 框架。
 
 ## 安装
-MobJS 不依赖任何第三方框架，可以按照 AMD 和 CommonJS 模块化方式引入。当然你也可以通过直接引用下面链接的方式引入：
+Mob 不依赖任何第三方框架，可以按照 AMD 和 CommonJS 模块化方式引入。当然你也可以通过直接引用下面链接的方式引入：
 
   <script src="https://raw.github.com/xscripter/mob/master/src/mob.min.js"></script>
 
