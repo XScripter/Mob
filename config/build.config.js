@@ -101,15 +101,15 @@ module.exports = {
       // addons
       'src/scripts/addons/swipe.js',
 
-      // architecture
-      'src/scripts/architecture/template.js',
-      'src/scripts/architecture/component.js',
-      'src/scripts/architecture/screen.js',
-      'src/scripts/architecture/screenComponent.js',
-      'src/scripts/architecture/screenManager.js',
-      'src/scripts/architecture/screenView.js',
-      'src/scripts/architecture/router.js',
-      'src/scripts/architecture/application.js',
+      // skeleton
+      'src/scripts/skeleton/template.js',
+      'src/scripts/skeleton/component.js',
+      'src/scripts/skeleton/screen.js',
+      'src/scripts/skeleton/screenComponent.js',
+      'src/scripts/skeleton/screenManager.js',
+      'src/scripts/skeleton/screenView.js',
+      'src/scripts/skeleton/router.js',
+      'src/scripts/skeleton/application.js',
 
       'src/scripts/Mob.suffix'
     ],
