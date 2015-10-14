@@ -95,7 +95,7 @@ moduleALogger.info('FizzWozz starting up');
 moduleALogger.setLevel(Mob.Logger.WARN);
 
 // 同样也可以直接使用下面方式打印日志
-Mob.Logger.get('ModuleA').warn('FizzWozz combombulated!");
+Mob.Logger.get('ModuleA').warn('打印警告日志');
 
 ```
 
