@@ -19,6 +19,17 @@ Mob 不依赖任何第三方框架，可以按照 AMD 和 CommonJS 模块化方�
 ```js
 // 日志信息会关联到 window.console
 Mob.Logger.useDefaults();
+
+// 同样可以配置
+Mob.Logger.useDefaults({
+  logLevel: Logger.WARN,
+  formatter: function (messages, context) {
+    messages.unshift('[Application]');
+    if (context.name) {
+      messages.unshift('[' + context.name + ']');
+    }
+  }
+});
 ```
 
 #### log
@@ -109,6 +120,21 @@ Mob.Logger.setLevel(Mob.Logger.WARN);
 Mob.Logger.get('LoggerB').setLevel(Mob.Logger.DEBUG);
 
 ```
+
+#### setHandler
+自定义日志信息处理方式。
+
+```js
+Mob.Logger.setHandler(function (messages, context) {
+  // 发送自定义日志信息到服务端，用于分析  
+  Mob.HTTP.post('/logs', {
+    message: messages[0],
+    evel: context.level
+  });
+});
+
+```
+
 
 
 
