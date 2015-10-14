@@ -1,6 +1,6 @@
 # Mob 框架
 
-> 轻量级的、稳定的、可配置的 HTML5 框架。
+> 轻量级、稳定、可配置 HTML5 框架。
 
 ## 安装
 Mob 不依赖任何第三方框架，可以按照 AMD 和 CommonJS 模块化方式引入。当然你也可以通过直接引用下面链接的方式引入：
@@ -10,6 +10,90 @@ Mob 不依赖任何第三方框架，可以按照 AMD 和 CommonJS 模块化方�
 ## 使用
 
 ## 文档
+
+### 模块（`Mob.Module`）
+
+#### define（`Mob.defineModule`）
+定义模块。
+
+```js
+Mob.Module.define('mo/forTest1', function(require, exports, module) {
+
+  // 可以使用 exports ，导出单个方法
+  exports.add = function(a, b) {
+    return a + b;
+  };
+
+});
+
+Mob.Module.define('mo/forTest2', function(require, exports, module) {
+
+  var helpers = {};
+
+  helpers.sayHi = function() {
+    return 'hi';
+  };
+
+  // 可以使用 module.exports ，导出对象
+  module.exports = helpers;
+
+});
+
+```
+
+#### require
+引入模块。
+
+在模块外引入某个模块。
+
+```js
+// 在模块外引入
+Mob.Module.define('mo/here', function(require, exports, module) {
+
+  exports.print = function() {
+    return '-';
+  };
+
+});
+
+var here = Mob.Module.require('mo/here');
+here.print();
+```
+
+在某个模块内部引入其他已定义的模块。
+
+```js
+Mob.Module.define('mo/forTest2', function(require, exports, module) {
+
+  // 直接通过 require 引入
+  var here = require('mo/here');
+
+  var helpers = {};
+
+  helpers.doublePrint = function() {
+
+    return here.print() + here.print();
+
+  };
+
+  module.exports = helpers;
+
+});
+```
+
+#### remove
+删除模块。
+
+```js
+Mob.Module.remove('mo/forTest2');
+```
+
+#### map
+查询模块
+
+```js
+var moduleMap = Mob.Module.map();
+```
 
 ### 日志打印（`Mob.Logger`）
 
