@@ -216,10 +216,66 @@ Mob.Logger.setHandler(function (messages, context) {
     evel: context.level
   });
 });
-
 ```
 
+### 模板（`Mob.Template`）
 
+#### addHelpers
+给模板添加帮助函数，可以直接在 <% … %> 调用帮助函数。
+
+```js
+Mob.Template.addHelpers({
+  add: function(a, b) {
+    return a + b;
+  },
+  subview: function(subviewName) {
+    return "<div data-subview='" + subviewName + "'></div>";
+  }
+});
+
+var s = '<%=add(a, b)%>';
+var data = {
+  a: 1,
+  b: 4
+};
+
+Mob.Template.compile(s)(data); // 5
+
+var s1 = '<%=subview("test")%>';
+Mob.Template.compile(s1)(); // <div data-subview=\'test\'></div>
+```
+
+#### compile
+模板函数可以使用 <%= … %> 插入变量, 也可以用 <% … %> 执行任意的 JavaScript 代码。 如果您希望插入一个值, 并让其进行HTML转义,请使用<%- … %>。 当你要给模板函数赋值的时候，可以传递一个含有与模板对应属性的 data 对象。
+
+```js
+var compiled = Mob.Template.compile('hello: <%= name %>');
+compiled({name: 'moe'}); // "hello: moe"
+
+var compiled1 = Mob.Template.compile('<b><%- value %></b>');
+compiled1({value: 'script'}); //"<b>script</b>"
+```
+
+同样也可以在 JavaScript 代码中使用 print . 有时候这会比使用 <%= ... %> 更方便。
+
+```js
+var compiled = Mob.Template.compile('<% print("Hello " + epithet); %>');
+compiled({epithet: 'stooge'});
+=> "Hello stooge"
+```
+
+#### settings
+更改模板设置。
+
+```js
+Mob.Template.settings = {
+  interpolate: /\{\{(.+?)\}\}/g
+};
+
+var compiled = Mob.Template.compile('Hello {{ name }}!');
+compiled({name: 'Mustache'});
+// "Hello Mustache!"
+```
 
 
 
