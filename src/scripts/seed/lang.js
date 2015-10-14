@@ -937,7 +937,7 @@ define('mob/lang', function(require, exports, module) {
       return toString.call(obj) === '[object Array]';
     };
 
-  lang.isObject = function(obj) {
+  var isObject = lang.isObject = function(obj) {
     var type = typeof obj;
     return type === 'function' || type === 'object' && !!obj;
   };
@@ -978,6 +978,18 @@ define('mob/lang', function(require, exports, module) {
 
   lang.isUndefined = function(obj) {
     return obj === void 0;
+  };
+
+  var isWindow = lang.isWindow = function(obj) {
+    return obj != null && obj == obj.window;
+  };
+
+  lang.isPlainObject = function(obj) {
+    return isObject(obj) && !isWindow(obj) && Object.getPrototypeOf(obj) == Object.prototype;
+  };
+
+  lang.isDocument = function(obj) {
+    return obj != null && obj.nodeType == obj.DOCUMENT_NODE;
   };
 
   lang.has = function(obj, key) {
@@ -1071,6 +1083,12 @@ define('mob/lang', function(require, exports, module) {
   lang.uniqueId = function(prefix) {
     var id = ++idCounter + '';
     return prefix ? prefix + id : id;
+  };
+
+  lang.camelize = function(str) {
+    return str.replace(/-+(.)?/g, function(match, chr) {
+      return chr ? chr.toUpperCase() : '';
+    });
   };
 
   module.exports = lang;

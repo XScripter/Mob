@@ -273,8 +273,7 @@ Mob.Template.settings = {
 };
 
 var compiled = Mob.Template.compile('Hello {{ name }}!');
-compiled({name: 'Mustache'});
-// "Hello Mustache!"
+compiled({name: 'Mustache'}); // "Hello Mustache!"
 ```
 
 
