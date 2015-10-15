@@ -698,6 +698,13 @@ define('mob/lang', function(require, exports, module) {
     return obj;
   };
 
+  lang.delay = function(func, wait) {
+    var args = slice.call(arguments, 2);
+    return setTimeout(function(){
+      return func.apply(null, args);
+    }, wait);
+  };
+
   lang.throttle = function(func, wait, options) {
     var context, args, result;
     var timeout = null;
@@ -896,8 +903,6 @@ define('mob/lang', function(require, exports, module) {
       document.title = title;
     });
   };
-
-
 
   module.exports = lang;
 

@@ -50,93 +50,6 @@
     });
   });
 
-  QUnit.test('Mob .Iterating objects with sketchy length properties', function(assert) {
-    var functions = [
-      'each', 'map', 'filter', 'find',
-      'some', 'every', 'groupBy', 'countBy', 'partition', 'indexBy'
-    ];
-    var reducers = ['reduce', 'reduceRight'];
-
-    var tricks = [
-      {length: '5'},
-      {
-        length: {
-          valueOf: Mob.constant(5)
-        }
-      },
-      {length: Math.pow(2, 53) + 1},
-      {length: Math.pow(2, 53)},
-      {length: null},
-      {length: -2},
-      {length: new Number(15)}
-    ];
-
-    assert.expect(tricks.length * (functions.length + reducers.length + 4));
-
-    Mob.each(tricks, function(trick) {
-      var length = trick.length;
-      assert.strictEqual(Mob.size(trick), 1, 'size on obj with length: ' + length);
-      assert.deepEqual(Mob.toArray(trick), [length], 'toArray on obj with length: ' + length);
-      assert.deepEqual(Mob.shuffle(trick), [length], 'shuffle on obj with length: ' + length);
-      assert.deepEqual(Mob.sample(trick), length, 'sample on obj with length: ' + length);
-
-
-      Mob.each(functions, function(method) {
-        Mob[method](trick, function(val, key) {
-          assert.strictEqual(key, 'length', method + ': ran with length = ' + val);
-        });
-      });
-
-      Mob.each(reducers, function(method) {
-        assert.strictEqual(Mob[method](trick), trick.length, method);
-      });
-    });
-  });
-
-  QUnit.test('Mob .Resistant to collection length and properties changing while iterating', function(assert) {
-
-    var collection = [
-      'each', 'map', 'filter', 'find',
-      'some', 'every', 'reject',
-      'groupBy', 'countBy', 'partition', 'indexBy',
-      'reduce', 'reduceRight'
-    ];
-    var array = [
-      'findIndex', 'findLastIndex'
-    ];
-    var object = [
-      'mapObject', 'findKey', 'pick', 'omit'
-    ];
-
-    Mob.each(collection.concat(array), function(method) {
-      var sparseArray = [1, 2, 3];
-      sparseArray.length = 100;
-      var answers = 0;
-      Mob[method](sparseArray, function(){
-        ++answers;
-        return method === 'every' ? true : null;
-      }, {});
-      assert.equal(answers, 100, method + ' enumerates [0, length)');
-
-      var growingCollection = [1, 2, 3], count = 0;
-      Mob[method](growingCollection, function() {
-        if (count < 10) growingCollection.push(count++);
-        return method === 'every' ? true : null;
-      }, {});
-      assert.equal(count, 3, method + ' is resistant to length changes');
-    });
-
-    Mob.each(collection.concat(object), function(method) {
-      var changingObject = {0: 0, 1: 1}, count = 0;
-      Mob[method](changingObject, function(val) {
-        if (count < 10) changingObject[++count] = val + 1;
-        return method === 'every' ? true : null;
-      }, {});
-
-      assert.equal(count, 2, method + ' is resistant to property changes');
-    });
-  });
-
   QUnit.test('Mob .map', function(assert) {
     var doubled = Mob.map([1, 2, 3], function(num){ return num * 2; });
     assert.deepEqual(doubled, [2, 4, 6], 'doubled numbers');
@@ -288,78 +201,6 @@
     assert.deepEqual(Mob.filter(list, {}), list, 'Empty object accepts all items');
   });
 
-  QUnit.test('Mob .reject', function(assert) {
-    var odds = Mob.reject([1, 2, 3, 4, 5, 6], function(num){ return num % 2 === 0; });
-    assert.deepEqual(odds, [1, 3, 5], 'rejected each even number');
-
-    var context = 'obj';
-
-    var evens = Mob.reject([1, 2, 3, 4, 5, 6], function(num){
-      assert.equal(context, 'obj');
-      return num % 2 !== 0;
-    }, context);
-    assert.deepEqual(evens, [2, 4, 6], 'rejected each odd number');
-
-    assert.deepEqual(Mob.reject([odds, {one: 1, two: 2, three: 3}], 'two'), [odds], 'predicate string map to object properties');
-
-    // Can be used like Mob.where.
-    var list = [{a: 1, b: 2}, {a: 2, b: 2}, {a: 1, b: 3}, {a: 1, b: 4}];
-    assert.deepEqual(Mob.reject(list, {a: 1}), [{a: 2, b: 2}]);
-    assert.deepEqual(Mob.reject(list, {b: 2}), [{a: 1, b: 3}, {a: 1, b: 4}]);
-    assert.deepEqual(Mob.reject(list, {}), [], 'Returns empty list given empty object');
-    assert.deepEqual(Mob.reject(list, []), [], 'Returns empty list given empty array');
-  });
-
-  QUnit.test('Mob .every', function(assert) {
-    assert.ok(Mob.every([], Mob.identity), 'the empty set');
-    assert.ok(Mob.every([true, true, true], Mob.identity), 'every true values');
-    assert.ok(!Mob.every([true, false, true], Mob.identity), 'one false value');
-    assert.ok(Mob.every([0, 10, 28], function(num){ return num % 2 === 0; }), 'even numbers');
-    assert.ok(!Mob.every([0, 11, 28], function(num){ return num % 2 === 0; }), 'an odd number');
-    assert.ok(Mob.every([1], Mob.identity) === true, 'cast to boolean - true');
-    assert.ok(Mob.every([0], Mob.identity) === false, 'cast to boolean - false');
-    assert.ok(!Mob.every([void 0, void 0, void 0], Mob.identity), 'works with arrays of undefined');
-
-    var list = [{a: 1, b: 2}, {a: 2, b: 2}, {a: 1, b: 3}, {a: 1, b: 4}];
-    assert.ok(!Mob.every(list, {a: 1, b: 2}), 'Can be called with object');
-    assert.ok(Mob.every(list, 'a'), 'String mapped to object property');
-
-    list = [{a: 1, b: 2}, {a: 2, b: 2, c: true}];
-    assert.ok(Mob.every(list, {b: 2}), 'Can be called with object');
-    assert.ok(!Mob.every(list, 'c'), 'String mapped to object property');
-
-    assert.ok(Mob.every({a: 1, b: 2, c: 3, d: 4}, Mob.isNumber), 'takes objects');
-    assert.ok(!Mob.every({a: 1, b: 2, c: 3, d: 4}, Mob.isObject), 'takes objects');
-    assert.ok(Mob.every(['a', 'b', 'c', 'd'], Mob.hasOwnProperty, {a: 1, b: 2, c: 3, d: 4}), 'context works');
-    assert.ok(!Mob.every(['a', 'b', 'c', 'd', 'f'], Mob.hasOwnProperty, {a: 1, b: 2, c: 3, d: 4}), 'context works');
-  });
-
-  QUnit.test('Mob .some', function(assert) {
-    assert.ok(!Mob.some([]), 'the empty set');
-    assert.ok(!Mob.some([false, false, false]), 'all false values');
-    assert.ok(Mob.some([false, false, true]), 'one true value');
-    assert.ok(Mob.some([null, 0, 'yes', false]), 'a string');
-    assert.ok(!Mob.some([null, 0, '', false]), 'falsy values');
-    assert.ok(!Mob.some([1, 11, 29], function(num){ return num % 2 === 0; }), 'all odd numbers');
-    assert.ok(Mob.some([1, 10, 29], function(num){ return num % 2 === 0; }), 'an even number');
-    assert.ok(Mob.some([1], Mob.identity) === true, 'cast to boolean - true');
-    assert.ok(Mob.some([0], Mob.identity) === false, 'cast to boolean - false');
-    assert.ok(Mob.some([false, false, true]));
-
-    var list = [{a: 1, b: 2}, {a: 2, b: 2}, {a: 1, b: 3}, {a: 1, b: 4}];
-    assert.ok(!Mob.some(list, {a: 5, b: 2}), 'Can be called with object');
-    assert.ok(Mob.some(list, 'a'), 'String mapped to object property');
-
-    list = [{a: 1, b: 2}, {a: 2, b: 2, c: true}];
-    assert.ok(Mob.some(list, {b: 2}), 'Can be called with object');
-    assert.ok(!Mob.some(list, 'd'), 'String mapped to object property');
-
-    assert.ok(Mob.some({a: '1', b: '2', c: '3', d: '4', e: 6}, Mob.isNumber), 'takes objects');
-    assert.ok(!Mob.some({a: 1, b: 2, c: 3, d: 4}, Mob.isObject), 'takes objects');
-    assert.ok(Mob.some(['a', 'b', 'c', 'd'], Mob.hasOwnProperty, {a: 1, b: 2, c: 3, d: 4}), 'context works');
-    assert.ok(!Mob.some(['x', 'y', 'z'], Mob.hasOwnProperty, {a: 1, b: 2, c: 3, d: 4}), 'context works');
-  });
-
   QUnit.test('Mob .contains', function(assert) {
     Mob.each([null, void 0, 0, 1, NaN, {}, []], function(val) {
       assert.strictEqual(Mob.contains(val, 'hasOwnProperty'), false);
@@ -382,7 +223,6 @@
     assert.strictEqual(Mob.contains(numbers, 1, 6), true, 'contains takes a fromIndex');
     assert.strictEqual(Mob.contains(numbers, 1, 7), false, 'contains takes a fromIndex');
 
-    assert.ok(Mob.every([1, 2, 3], Mob.partial(Mob.contains, numbers)), 'fromIndex is guarded');
   });
 
   QUnit.test('Mob .contains with NaN', function(assert) {
@@ -399,7 +239,7 @@
   });
 
 
-  QUnit.test('Mob .invoke', 5, function(assert) {
+  QUnit.test('Mob .invoke', function(assert) {
     var list = [[5, 1, 7], [3, 2, 1]];
     var result = Mob.invoke(list, 'sort');
     assert.deepEqual(result[0], [1, 5, 7], 'first array sorted');
@@ -410,8 +250,6 @@
         assert.deepEqual(Mob.toArray(arguments), [1, 2, 3], 'called with arguments');
       }
     }], 'method', 1, 2, 3);
-
-    assert.deepEqual(Mob.invoke([{a: null}, {}, {a: Mob.constant(1)}], 'a'), [null, void 0, 1], 'handles null & undefined');
 
     assert.throws(function() {
       Mob.invoke([{a: 1}], 'a');
@@ -452,47 +290,6 @@
     assert.deepEqual(Mob.pluck([{'[object Object]': 1}], {}), [1]);
   });
 
-  QUnit.test('Mob .where', function(assert) {
-    var list = [{a: 1, b: 2}, {a: 2, b: 2}, {a: 1, b: 3}, {a: 1, b: 4}];
-    var result = Mob.where(list, {a: 1});
-    assert.equal(result.length, 3);
-    assert.equal(result[result.length - 1].b, 4);
-    result = Mob.where(list, {b: 2});
-    assert.equal(result.length, 2);
-    assert.equal(result[0].a, 1);
-    result = Mob.where(list, {});
-    assert.equal(result.length, list.length);
-
-    function test() {}
-    test.map = Mob.map;
-    assert.deepEqual(Mob.where([Mob, {a: 1, b: 2}, Mob], test), [Mob, Mob], 'checks properties given function');
-  });
-
-  QUnit.test('Mob .findWhere', function(assert) {
-    var list = [{a: 1, b: 2}, {a: 2, b: 2}, {a: 1, b: 3}, {a: 1, b: 4}, {a: 2, b: 4}];
-    var result = Mob.findWhere(list, {a: 1});
-    assert.deepEqual(result, {a: 1, b: 2});
-    result = Mob.findWhere(list, {b: 4});
-    assert.deepEqual(result, {a: 1, b: 4});
-
-    result = Mob.findWhere(list, {c: 1});
-    assert.ok(Mob.isUndefined(result), 'undefined when not found');
-
-    result = Mob.findWhere([], {c: 1});
-    assert.ok(Mob.isUndefined(result), 'undefined when searching empty list');
-
-    function test() {}
-    test.map = Mob.map;
-    assert.equal(Mob.findWhere([Mob, {a: 1, b: 2}, Mob], test), Mob, 'checks properties given function');
-
-    function TestClass() {
-      this.y = 5;
-      this.x = 'foo';
-    }
-    var expect = {c: 1, x: 'foo', y: 5};
-    assert.deepEqual(Mob.findWhere([{y: 5, b: 6}, expect], new TestClass()), expect, 'uses class instance properties');
-  });
-
   QUnit.test('Mob .sortBy', function(assert) {
     var people = [{name: 'curly', age: 50}, {name: 'moe', age: 30}];
     people = Mob.sortBy(people, function(person){ return person.age; });
@@ -522,20 +319,12 @@
       new Pair(void 0, 5), new Pair(void 0, 6)
     ];
 
-    var stableObject = Mob.object('abcdefghijklmnopqr'.split(''), stableArray);
-
     var actual = Mob.sortBy(stableArray, function(pair) {
       return pair.x;
     });
 
     assert.deepEqual(actual, stableArray, 'sortBy should be stable for arrays');
     assert.deepEqual(Mob.sortBy(stableArray, 'x'), stableArray, 'sortBy accepts property string');
-
-    actual = Mob.sortBy(stableObject, function(pair) {
-      return pair.x;
-    });
-
-    assert.deepEqual(actual, stableArray, 'sortBy should be stable for objects');
 
     list = ['q', 'w', 'e', 'r', 't', 'y'];
     assert.deepEqual(Mob.sortBy(list), ['e', 'q', 'r', 't', 'w', 'y'], 'uses Mob.identity if iterator is not specified');
@@ -625,38 +414,6 @@
     assert.equal(grouped['3'], 1);
   });
 
-  QUnit.test('Mob .shuffle', function(assert) {
-    assert.deepEqual(Mob.shuffle([1]), [1], 'behaves correctly on size 1 arrays');
-    var numbers = Mob.range(20);
-    var shuffled = Mob.shuffle(numbers);
-    assert.notDeepEqual(numbers, shuffled, 'does change the order'); // Chance of false negative: 1 in ~2.4*10^18
-    assert.notStrictEqual(numbers, shuffled, 'original object is unmodified');
-    assert.deepEqual(numbers, Mob.sortBy(shuffled), 'contains the same members before and after shuffle');
-
-    shuffled = Mob.shuffle({a: 1, b: 2, c: 3, d: 4});
-    assert.equal(shuffled.length, 4);
-    assert.deepEqual(shuffled.sort(), [1, 2, 3, 4], 'works on objects');
-  });
-
-  QUnit.test('Mob .sample', function(assert) {
-    assert.strictEqual(Mob.sample([1]), 1, 'behaves correctly when no second parameter is given');
-    assert.deepEqual(Mob.sample([1, 2, 3], -2), [], 'behaves correctly on negative n');
-    var numbers = Mob.range(10);
-    var allSampled = Mob.sample(numbers, 10).sort();
-    assert.deepEqual(allSampled, numbers, 'contains the same members before and after sample');
-    allSampled = Mob.sample(numbers, 20).sort();
-    assert.deepEqual(allSampled, numbers, 'also works when sampling more objects than are present');
-    assert.ok(Mob.contains(numbers, Mob.sample(numbers)), 'sampling a single element returns something from the array');
-    assert.strictEqual(Mob.sample([]), void 0, 'sampling empty array with no number returns undefined');
-    assert.notStrictEqual(Mob.sample([], 5), [], 'sampling empty array with a number returns an empty array');
-    assert.notStrictEqual(Mob.sample([1, 2, 3], 0), [], 'sampling an array with 0 picks returns an empty array');
-    assert.deepEqual(Mob.sample([1, 2], -1), [], 'sampling a negative number of picks returns an empty array');
-    assert.ok(Mob.contains([1, 2, 3], Mob.sample({a: 1, b: 2, c: 3})), 'sample one value from an object');
-    var partialSample = Mob.sample(Mob.range(1000), 10);
-    var partialSampleSorted = partialSample.sort();
-    assert.notDeepEqual(partialSampleSorted, Mob.range(10), 'samples from the whole array, not just the beginning');
-  });
-
   QUnit.test('Mob .toArray', function(assert) {
     assert.ok(!Mob.isArray(arguments), 'arguments object is not an array');
     assert.ok(Mob.isArray(Mob.toArray(arguments)), 'arguments object converted into array');
@@ -697,37 +454,6 @@
     assert.equal(Mob.size(0), 0, 'handles numbers');
   });
 
-  QUnit.test('Mob .partition', function(assert) {
-    var list = [0, 1, 2, 3, 4, 5];
-    assert.deepEqual(Mob.partition(list, function(x) { return x < 4; }), [[0, 1, 2, 3], [4, 5]], 'handles bool return values');
-    assert.deepEqual(Mob.partition(list, function(x) { return x & 1; }), [[1, 3, 5], [0, 2, 4]], 'handles 0 and 1 return values');
-    assert.deepEqual(Mob.partition(list, function(x) { return x - 3; }), [[0, 1, 2, 4, 5], [3]], 'handles other numeric return values');
-    assert.deepEqual(Mob.partition(list, function(x) { return x > 1 ? null : true; }), [[0, 1], [2, 3, 4, 5]], 'handles null return values');
-    assert.deepEqual(Mob.partition(list, function(x) { if (x < 2) return true; }), [[0, 1], [2, 3, 4, 5]], 'handles undefined return values');
-    assert.deepEqual(Mob.partition({a: 1, b: 2, c: 3}, function(x) { return x > 1; }), [[2, 3], [1]], 'handles objects');
-
-    assert.deepEqual(Mob.partition(list, function(x, index) { return index % 2; }), [[1, 3, 5], [0, 2, 4]], 'can reference the array index');
-    assert.deepEqual(Mob.partition(list, function(x, index, arr) { return x === arr.length - 1; }), [[5], [0, 1, 2, 3, 4]], 'can reference the collection');
-
-    // Default iterator
-    assert.deepEqual(Mob.partition([1, false, true, '']), [[1, true], [false, '']], 'Default iterator');
-    assert.deepEqual(Mob.partition([{x: 1}, {x: 0}, {x: 1}], 'x'), [[{x: 1}, {x: 1}], [{x: 0}]], 'Takes a string');
-
-    // Context
-    var predicate = function(x){ return x === this.x; };
-    assert.deepEqual(Mob.partition([1, 2, 3], predicate, {x: 2}), [[2], [1, 3]], 'partition takes a context argument');
-
-    assert.deepEqual(Mob.partition([{a: 1}, {b: 2}, {a: 1, b: 2}], {a: 1}), [[{a: 1}, {a: 1, b: 2}], [{b: 2}]], 'predicate can be object');
-
-    var object = {a: 1};
-    Mob.partition(object, function(val, key, obj) {
-      assert.equal(val, 1);
-      assert.equal(key, 'a');
-      assert.equal(obj, object);
-      assert.equal(this, predicate);
-    }, predicate);
-  });
-
   if (typeof document != 'undefined') {
     QUnit.test('Mob .Can use various collection methods on NodeLists', function(assert) {
       var parent = document.createElement('div');
@@ -738,9 +464,6 @@
 
       assert.deepEqual(Mob.map(elementChildren, 'id'), ['id1', 'id2']);
       assert.deepEqual(Mob.map(parent.childNodes, 'nodeType'), [1, 3, 1]);
-
-      assert.ok(!Mob.every(parent.childNodes, Mob.isElement));
-      assert.ok(Mob.some(parent.childNodes, Mob.isElement));
 
     });
   }

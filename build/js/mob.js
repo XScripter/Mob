@@ -806,6 +806,13 @@
       return obj;
     };
   
+    lang.delay = function(func, wait) {
+      var args = slice.call(arguments, 2);
+      return setTimeout(function(){
+        return func.apply(null, args);
+      }, wait);
+    };
+  
     lang.throttle = function(func, wait, options) {
       var context, args, result;
       var timeout = null;
@@ -1005,8 +1012,6 @@
       });
     };
   
-  
-  
     module.exports = lang;
   
   });
@@ -1185,7 +1190,6 @@
       slice = ArrayProto.slice,
       filter = ArrayProto.filter,
       document = window.document,
-      duuid = 0,
   
       filters,
       fragmentRE = /^\s*<(\w+|!)[^>]*>/,
@@ -1238,6 +1242,7 @@
         'frameborder': 'frameBorder',
         'contenteditable': 'contentEditable'
       },
+      duuid = 0,
       dataCache = {},
       dataExp = 'JQLite' + lang.now(),
   
@@ -1736,6 +1741,27 @@
       }
     };
   
+    $.event = {
+      add: addEvt,
+      remove: removeEvt
+    };
+  
+    $.Event = function(type, props) {
+      if (!lang.isString(type)) {
+        props = type;
+        type = props.type;
+      }
+      var event = document.createEvent(specialEvents[type] || 'Events'),
+        bubbles = true;
+      if (props) {
+        for (var name in props) {
+          (name == 'bubbles') ? (bubbles = !!props[name]) : (event[name] = props[name]);
+        }
+      }
+      event.initEvent(type, bubbles, true);
+      return compatibleEvt(event);
+    };
+  
     if (window.JSON) {
       $.parseJSON = JSON.parse;
     }
@@ -1858,27 +1884,6 @@
         }
       }
       return jqlite.jQ(dom, selector);
-    };
-  
-    $.event = {
-      add: addEvt,
-      remove: removeEvt
-    };
-  
-    $.Event = function(type, props) {
-      if (!lang.isString(type)) {
-        props = type;
-        type = props.type;
-      }
-      var event = document.createEvent(specialEvents[type] || 'Events'),
-        bubbles = true;
-      if (props) {
-        for (var name in props) {
-          (name == 'bubbles') ? (bubbles = !!props[name]) : (event[name] = props[name]);
-        }
-      }
-      event.initEvent(type, bubbles, true);
-      return compatibleEvt(event);
     };
   
     $.fn = {

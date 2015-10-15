@@ -79,9 +79,6 @@
     b.bar = 'bar';
     assert.deepEqual(Mob.allKeys(b).sort(), ['bar', 'foo'], 'should include inherited keys');
 
-    function y() {}
-    y.x = 'z';
-    assert.deepEqual(Mob.allKeys(y), ['x'], 'should get keys from constructor');
   });
 
   QUnit.test('Mob .values', function(assert) {
@@ -94,25 +91,6 @@
       two: 2,
       length: 3
     }), [1, 2, 3], '... even when one of them is "length"');
-  });
-
-  QUnit.test('Mob .pairs', function(assert) {
-    assert.deepEqual(Mob.pairs({
-      one: 1,
-      two: 2
-    }), [
-      ['one', 1],
-      ['two', 2]
-    ], 'can convert an object into pairs');
-    assert.deepEqual(Mob.pairs({
-      one: 1,
-      two: 2,
-      length: 3
-    }), [
-      ['one', 1],
-      ['two', 2],
-      ['length', 3]
-    ], '... even when one of them is "length"');
   });
 
   QUnit.test('Mob .invert', function(assert) {
@@ -128,20 +106,6 @@
       length: 3
     };
     assert.equal(Mob.invert(obj)['3'], 'length', 'can invert an object with "length"');
-  });
-
-  QUnit.test('Mob .functions', function(assert) {
-    var obj = {
-      a: 'dash',
-      b: Mob.map,
-      c: /yo/,
-      d: Mob.reduce
-    };
-    assert.deepEqual(['b', 'd'], Mob.functions(obj), 'can grab the function names of any passed-in object');
-
-    var Animal = function() {};
-    Animal.prototype.run = function() {};
-    assert.deepEqual(Mob.functions(new Animal), ['run'], 'also looks up functions on the prototype');
   });
 
   QUnit.test('Mob .extend', function(assert) {
@@ -347,7 +311,6 @@
 
     Mob.each([null, void 0], function(val) {
       assert.deepEqual(Mob.pick(val, 'hasOwnProperty'), {}, 'Called with null/undefined');
-      assert.deepEqual(Mob.pick(val, Mob.constant(true)), {});
     });
     assert.deepEqual(Mob.pick(5, 'toString', 'b'), {
       toString: Number.prototype.toString
@@ -531,418 +494,9 @@
     clone.name = 'curly';
     assert.ok(clone.name === 'curly' && moe.name === 'moe', 'clones can change shallow attributes without affecting the original');
 
-    clone.lucky.push(101);
-    assert.equal(Mob.last(moe.lucky), 101, 'changes to deep attributes are shared with the original');
-
     assert.equal(Mob.clone(void 0), void 0, 'non objects should not be changed by clone');
     assert.equal(Mob.clone(1), 1, 'non objects should not be changed by clone');
     assert.equal(Mob.clone(null), null, 'non objects should not be changed by clone');
-  });
-
-  QUnit.test('Mob .create', function(assert) {
-    var Parent = function() {};
-    Parent.prototype = {
-      foo: function() {},
-      bar: 2
-    };
-
-    Mob.each(['foo', null, void 0, 1], function(val) {
-      assert.deepEqual(Mob.create(val), {}, 'should return empty object when a non-object is provided');
-    });
-
-    assert.ok(Mob.create([]) instanceof Array, 'should return new instance of array when array is provided');
-
-    var Child = function() {};
-    Child.prototype = Mob.create(Parent.prototype);
-    assert.ok(new Child instanceof Parent, 'object should inherit prototype');
-
-    var func = function() {};
-    Child.prototype = Mob.create(Parent.prototype, {
-      func: func
-    });
-    assert.strictEqual(Child.prototype.func, func, 'properties should be added to object');
-
-    Child.prototype = Mob.create(Parent.prototype, {
-      constructor: Child
-    });
-    assert.strictEqual(Child.prototype.constructor, Child);
-
-    Child.prototype.foo = 'foo';
-    var created = Mob.create(Child.prototype, new Child);
-    assert.ok(!created.hasOwnProperty('foo'), 'should only add own properties');
-  });
-
-  QUnit.test('Mob .isEqual', function(assert) {
-    function First() {
-      this.value = 1;
-    }
-    First.prototype.value = 1;
-
-    function Second() {
-      this.value = 1;
-    }
-    Second.prototype.value = 2;
-
-    // Basic equality and identity comparisons.
-    assert.ok(Mob.isEqual(null, null), '`null` is equal to `null`');
-    assert.ok(Mob.isEqual(), '`undefined` is equal to `undefined`');
-
-    assert.ok(!Mob.isEqual(0, -0), '`0` is not equal to `-0`');
-    assert.ok(!Mob.isEqual(-0, 0), 'Commutative equality is implemented for `0` and `-0`');
-    assert.ok(!Mob.isEqual(null, void 0), '`null` is not equal to `undefined`');
-    assert.ok(!Mob.isEqual(void 0, null), 'Commutative equality is implemented for `null` and `undefined`');
-
-    // String object and primitive comparisons.
-    assert.ok(Mob.isEqual('Curly', 'Curly'), 'Identical string primitives are equal');
-    assert.ok(Mob.isEqual(new String('Curly'), new String('Curly')), 'String objects with identical primitive values are equal');
-    assert.ok(Mob.isEqual(new String('Curly'), 'Curly'), 'String primitives and their corresponding object wrappers are equal');
-    assert.ok(Mob.isEqual('Curly', new String('Curly')), 'Commutative equality is implemented for string objects and primitives');
-
-    assert.ok(!Mob.isEqual('Curly', 'Larry'), 'String primitives with different values are not equal');
-    assert.ok(!Mob.isEqual(new String('Curly'), new String('Larry')), 'String objects with different primitive values are not equal');
-    assert.ok(!Mob.isEqual(new String('Curly'), {
-      toString: function() {
-        return 'Curly';
-      }
-    }), 'String objects and objects with a custom `toString` method are not equal');
-
-    // Number object and primitive comparisons.
-    assert.ok(Mob.isEqual(75, 75), 'Identical number primitives are equal');
-    assert.ok(Mob.isEqual(new Number(75), new Number(75)), 'Number objects with identical primitive values are equal');
-    assert.ok(Mob.isEqual(75, new Number(75)), 'Number primitives and their corresponding object wrappers are equal');
-    assert.ok(Mob.isEqual(new Number(75), 75), 'Commutative equality is implemented for number objects and primitives');
-    assert.ok(!Mob.isEqual(new Number(0), -0), '`new Number(0)` and `-0` are not equal');
-    assert.ok(!Mob.isEqual(0, new Number(-0)), 'Commutative equality is implemented for `new Number(0)` and `-0`');
-
-    assert.ok(!Mob.isEqual(new Number(75), new Number(63)), 'Number objects with different primitive values are not equal');
-    assert.ok(!Mob.isEqual(new Number(63), {
-      valueOf: function() {
-        return 63;
-      }
-    }), 'Number objects and objects with a `valueOf` method are not equal');
-
-    // Comparisons involving `NaN`.
-    assert.ok(Mob.isEqual(NaN, NaN), '`NaN` is equal to `NaN`');
-    assert.ok(Mob.isEqual(new Number(NaN), NaN), 'Object(`NaN`) is equal to `NaN`');
-    assert.ok(!Mob.isEqual(61, NaN), 'A number primitive is not equal to `NaN`');
-    assert.ok(!Mob.isEqual(new Number(79), NaN), 'A number object is not equal to `NaN`');
-    assert.ok(!Mob.isEqual(Infinity, NaN), '`Infinity` is not equal to `NaN`');
-
-    // Boolean object and primitive comparisons.
-    assert.ok(Mob.isEqual(true, true), 'Identical boolean primitives are equal');
-    assert.ok(Mob.isEqual(new Boolean, new Boolean), 'Boolean objects with identical primitive values are equal');
-    assert.ok(Mob.isEqual(true, new Boolean(true)), 'Boolean primitives and their corresponding object wrappers are equal');
-    assert.ok(Mob.isEqual(new Boolean(true), true), 'Commutative equality is implemented for booleans');
-    assert.ok(!Mob.isEqual(new Boolean(true), new Boolean), 'Boolean objects with different primitive values are not equal');
-
-    // Common type coercions.
-    assert.ok(!Mob.isEqual(new Boolean(false), true), '`new Boolean(false)` is not equal to `true`');
-    assert.ok(!Mob.isEqual('75', 75), 'String and number primitives with like values are not equal');
-    assert.ok(!Mob.isEqual(new Number(63), new String(63)), 'String and number objects with like values are not equal');
-    assert.ok(!Mob.isEqual(75, '75'), 'Commutative equality is implemented for like string and number values');
-    assert.ok(!Mob.isEqual(0, ''), 'Number and string primitives with like values are not equal');
-    assert.ok(!Mob.isEqual(1, true), 'Number and boolean primitives with like values are not equal');
-    assert.ok(!Mob.isEqual(new Boolean(false), new Number(0)), 'Boolean and number objects with like values are not equal');
-    assert.ok(!Mob.isEqual(false, new String('')), 'Boolean primitives and string objects with like values are not equal');
-    assert.ok(!Mob.isEqual(12564504e5, new Date(2009, 9, 25)), 'Dates and their corresponding numeric primitive values are not equal');
-
-    // Dates.
-    assert.ok(Mob.isEqual(new Date(2009, 9, 25), new Date(2009, 9, 25)), 'Date objects referencing identical times are equal');
-    assert.ok(!Mob.isEqual(new Date(2009, 9, 25), new Date(2009, 11, 13)), 'Date objects referencing different times are not equal');
-    assert.ok(!Mob.isEqual(new Date(2009, 11, 13), {
-      getTime: function() {
-        return 12606876e5;
-      }
-    }), 'Date objects and objects with a `getTime` method are not equal');
-    assert.ok(!Mob.isEqual(new Date('Curly'), new Date('Curly')), 'Invalid dates are not equal');
-
-    // Functions.
-    assert.ok(!Mob.isEqual(First, Second), 'Different functions with identical bodies and source code representations are not equal');
-
-    // RegExps.
-    assert.ok(Mob.isEqual(/(?:)/gim, /(?:)/gim), 'RegExps with equivalent patterns and flags are equal');
-    assert.ok(Mob.isEqual(/(?:)/gi, /(?:)/ig), 'Flag order is not significant');
-    assert.ok(!Mob.isEqual(/(?:)/g, /(?:)/gi), 'RegExps with equivalent patterns and different flags are not equal');
-    assert.ok(!Mob.isEqual(/Moe/gim, /Curly/gim), 'RegExps with different patterns and equivalent flags are not equal');
-    assert.ok(!Mob.isEqual(/(?:)/gi, /(?:)/g), 'Commutative equality is implemented for RegExps');
-    assert.ok(!Mob.isEqual(/Curly/g, {
-      source: 'Larry',
-      global: true,
-      ignoreCase: false,
-      multiline: false
-    }), 'RegExps and RegExp-like objects are not equal');
-
-    // Empty arrays, array-like objects, and object literals.
-    assert.ok(Mob.isEqual({}, {}), 'Empty object literals are equal');
-    assert.ok(Mob.isEqual([], []), 'Empty array literals are equal');
-    assert.ok(Mob.isEqual([{}], [{}]), 'Empty nested arrays and objects are equal');
-    assert.ok(!Mob.isEqual({
-      length: 0
-    }, []), 'Array-like objects and arrays are not equal.');
-    assert.ok(!Mob.isEqual([], {
-      length: 0
-    }), 'Commutative equality is implemented for array-like objects');
-
-    assert.ok(!Mob.isEqual({}, []), 'Object literals and array literals are not equal');
-    assert.ok(!Mob.isEqual([], {}), 'Commutative equality is implemented for objects and arrays');
-
-    // Arrays with primitive and object values.
-    assert.ok(Mob.isEqual([1, 'Larry', true], [1, 'Larry', true]), 'Arrays containing identical primitives are equal');
-    assert.ok(Mob.isEqual([/Moe/g, new Date(2009, 9, 25)], [/Moe/g, new Date(2009, 9, 25)]), 'Arrays containing equivalent elements are equal');
-
-    // Multi-dimensional arrays.
-    var a = [new Number(47), false, 'Larry', /Moe/, new Date(2009, 11, 13), ['running', 'biking', new String('programming')], {
-      a: 47
-    }];
-    var b = [new Number(47), false, 'Larry', /Moe/, new Date(2009, 11, 13), ['running', 'biking', new String('programming')], {
-      a: 47
-    }];
-    assert.ok(Mob.isEqual(a, b), 'Arrays containing nested arrays and objects are recursively compared');
-
-    // Overwrite the methods defined in ES 5.1 section 15.4.4.
-    a.forEach = a.map = a.filter = a.every = a.indexOf = a.lastIndexOf = a.some = a.reduce = a.reduceRight = null;
-    b.join = b.pop = b.reverse = b.shift = b.slice = b.splice = b.concat = b.sort = b.unshift = null;
-
-    // Array elements and properties.
-    assert.ok(Mob.isEqual(a, b), 'Arrays containing equivalent elements and different non-numeric properties are equal');
-    a.push('White Rocks');
-    assert.ok(!Mob.isEqual(a, b), 'Arrays of different lengths are not equal');
-    a.push('East Boulder');
-    b.push('Gunbarrel Ranch', 'Teller Farm');
-    assert.ok(!Mob.isEqual(a, b), 'Arrays of identical lengths containing different elements are not equal');
-
-    // Sparse arrays.
-    assert.ok(Mob.isEqual(Array(3), Array(3)), 'Sparse arrays of identical lengths are equal');
-    assert.ok(!Mob.isEqual(Array(3), Array(6)), 'Sparse arrays of different lengths are not equal when both are empty');
-
-    var sparse = [];
-    sparse[1] = 5;
-    assert.ok(Mob.isEqual(sparse, [void 0, 5]), 'Handles sparse arrays as dense');
-
-    // Simple objects.
-    assert.ok(Mob.isEqual({
-      a: 'Curly',
-      b: 1,
-      c: true
-    }, {
-      a: 'Curly',
-      b: 1,
-      c: true
-    }), 'Objects containing identical primitives are equal');
-    assert.ok(Mob.isEqual({
-      a: /Curly/g,
-      b: new Date(2009, 11, 13)
-    }, {
-      a: /Curly/g,
-      b: new Date(2009, 11, 13)
-    }), 'Objects containing equivalent members are equal');
-    assert.ok(!Mob.isEqual({
-      a: 63,
-      b: 75
-    }, {
-      a: 61,
-      b: 55
-    }), 'Objects of identical sizes with different values are not equal');
-    assert.ok(!Mob.isEqual({
-      a: 63,
-      b: 75
-    }, {
-      a: 61,
-      c: 55
-    }), 'Objects of identical sizes with different property names are not equal');
-    assert.ok(!Mob.isEqual({
-      a: 1,
-      b: 2
-    }, {
-      a: 1
-    }), 'Objects of different sizes are not equal');
-    assert.ok(!Mob.isEqual({
-      a: 1
-    }, {
-      a: 1,
-      b: 2
-    }), 'Commutative equality is implemented for objects');
-    assert.ok(!Mob.isEqual({
-      x: 1,
-      y: void 0
-    }, {
-      x: 1,
-      z: 2
-    }), 'Objects with identical keys and different values are not equivalent');
-
-    // `A` contains nested objects and arrays.
-    a = {
-      name: new String('Moe Howard'),
-      age: new Number(77),
-      stooge: true,
-      hobbies: ['acting'],
-      film: {
-        name: 'Sing a Song of Six Pants',
-        release: new Date(1947, 9, 30),
-        stars: [new String('Larry Fine'), 'Shemp Howard'],
-        minutes: new Number(16),
-        seconds: 54
-      }
-    };
-
-    // `B` contains equivalent nested objects and arrays.
-    b = {
-      name: new String('Moe Howard'),
-      age: new Number(77),
-      stooge: true,
-      hobbies: ['acting'],
-      film: {
-        name: 'Sing a Song of Six Pants',
-        release: new Date(1947, 9, 30),
-        stars: [new String('Larry Fine'), 'Shemp Howard'],
-        minutes: new Number(16),
-        seconds: 54
-      }
-    };
-    assert.ok(Mob.isEqual(a, b), 'Objects with nested equivalent members are recursively compared');
-
-    // Instances.
-    assert.ok(Mob.isEqual(new First, new First), 'Object instances are equal');
-    assert.ok(!Mob.isEqual(new First, new Second), 'Objects with different constructors and identical own properties are not equal');
-    assert.ok(!Mob.isEqual({
-      value: 1
-    }, new First), 'Object instances and objects sharing equivalent properties are not equal');
-    assert.ok(!Mob.isEqual({
-      value: 2
-    }, new Second), 'The prototype chain of objects should not be examined');
-
-    // Circular Arrays.
-    (a = []).push(a);
-    (b = []).push(b);
-    assert.ok(Mob.isEqual(a, b), 'Arrays containing circular references are equal');
-    a.push(new String('Larry'));
-    b.push(new String('Larry'));
-    assert.ok(Mob.isEqual(a, b), 'Arrays containing circular references and equivalent properties are equal');
-    a.push('Shemp');
-    b.push('Curly');
-    assert.ok(!Mob.isEqual(a, b), 'Arrays containing circular references and different properties are not equal');
-
-    // More circular arrays #767.
-    a = ['everything is checked but', 'this', 'is not'];
-    a[1] = a;
-    b = ['everything is checked but', ['this', 'array'], 'is not'];
-    assert.ok(!Mob.isEqual(a, b), 'Comparison of circular references with non-circular references are not equal');
-
-    // Circular Objects.
-    a = {
-      abc: null
-    };
-    b = {
-      abc: null
-    };
-    a.abc = a;
-    b.abc = b;
-    assert.ok(Mob.isEqual(a, b), 'Objects containing circular references are equal');
-    a.def = 75;
-    b.def = 75;
-    assert.ok(Mob.isEqual(a, b), 'Objects containing circular references and equivalent properties are equal');
-    a.def = new Number(75);
-    b.def = new Number(63);
-    assert.ok(!Mob.isEqual(a, b), 'Objects containing circular references and different properties are not equal');
-
-    // More circular objects #767.
-    a = {
-      everything: 'is checked',
-      but: 'this',
-      is: 'not'
-    };
-    a.but = a;
-    b = {
-      everything: 'is checked',
-      but: {
-        that: 'object'
-      },
-      is: 'not'
-    };
-    assert.ok(!Mob.isEqual(a, b), 'Comparison of circular references with non-circular object references are not equal');
-
-    // Cyclic Structures.
-    a = [{
-      abc: null
-    }];
-    b = [{
-      abc: null
-    }];
-    (a[0].abc = a).push(a);
-    (b[0].abc = b).push(b);
-    assert.ok(Mob.isEqual(a, b), 'Cyclic structures are equal');
-    a[0].def = 'Larry';
-    b[0].def = 'Larry';
-    assert.ok(Mob.isEqual(a, b), 'Cyclic structures containing equivalent properties are equal');
-    a[0].def = new String('Larry');
-    b[0].def = new String('Curly');
-    assert.ok(!Mob.isEqual(a, b), 'Cyclic structures containing different properties are not equal');
-
-    // Complex Circular References.
-    a = {
-      foo: {
-        b: {
-          foo: {
-            c: {
-              foo: null
-            }
-          }
-        }
-      }
-    };
-    b = {
-      foo: {
-        b: {
-          foo: {
-            c: {
-              foo: null
-            }
-          }
-        }
-      }
-    };
-    a.foo.b.foo.c.foo = a;
-    b.foo.b.foo.c.foo = b;
-    assert.ok(Mob.isEqual(a, b), 'Cyclic structures with nested and identically-named properties are equal');
-
-    // Objects without a `constructor` property
-    if (Object.create) {
-      a = Object.create(null, {
-        x: {
-          value: 1,
-          enumerable: true
-        }
-      });
-      b = {
-        x: 1
-      };
-      assert.ok(Mob.isEqual(a, b), 'Handles objects without a constructor (e.g. from Object.create');
-    }
-
-    function Foo() {
-      this.a = 1;
-    }
-    Foo.prototype.constructor = null;
-
-    var other = {
-      a: 1
-    };
-    assert.strictEqual(Mob.isEqual(new Foo, other), false, 'Objects from different constructors are not equal');
-
-
-    // Tricky object cases val comparisions
-    assert.equal(Mob.isEqual([0], [-0]), false);
-    assert.equal(Mob.isEqual({
-      a: 0
-    }, {
-      a: -0
-    }), false);
-    assert.equal(Mob.isEqual([NaN], [NaN]), true);
-    assert.equal(Mob.isEqual({
-      a: NaN
-    }, {
-      a: NaN
-    }), true);
   });
 
   QUnit.test('Mob .isEmpty', function(assert) {
@@ -1077,22 +631,6 @@
     assert.ok(Mob.isRegExp(/identity/), 'but RegExps are');
   });
 
-  QUnit.test('Mob .isFinite', function(assert) {
-    assert.ok(!Mob.isFinite(void 0), 'undefined is not finite');
-    assert.ok(!Mob.isFinite(null), 'null is not finite');
-    assert.ok(!Mob.isFinite(NaN), 'NaN is not finite');
-    assert.ok(!Mob.isFinite(Infinity), 'Infinity is not finite');
-    assert.ok(!Mob.isFinite(-Infinity), '-Infinity is not finite');
-    assert.ok(Mob.isFinite('12'), 'Numeric strings are numbers');
-    assert.ok(!Mob.isFinite('1a'), 'Non numeric strings are not numbers');
-    assert.ok(!Mob.isFinite(''), 'Empty strings are not numbers');
-    var obj = new Number(5);
-    assert.ok(Mob.isFinite(obj), 'Number instances can be finite');
-    assert.ok(Mob.isFinite(0), '0 is finite');
-    assert.ok(Mob.isFinite(123), 'Ints are finite');
-    assert.ok(Mob.isFinite(-12.44), 'Floats are finite');
-  });
-
   QUnit.test('Mob .isNaN', function(assert) {
     assert.ok(!Mob.isNaN(void 0), 'undefined is not NaN');
     assert.ok(!Mob.isNaN(null), 'null is not NaN');
@@ -1127,16 +665,6 @@
     assert.ok(Mob.isError(new SyntaxError()), 'SyntaxErrors are Errors');
     assert.ok(Mob.isError(new TypeError()), 'TypeErrors are Errors');
     assert.ok(Mob.isError(new URIError()), 'URIErrors are Errors');
-  });
-
-  QUnit.test('Mob .tap', function(assert) {
-    var intercepted = null;
-    var interceptor = function(obj) {
-      intercepted = obj;
-    };
-    var returned = Mob.tap(1, interceptor);
-    assert.equal(intercepted, 1, 'passes tapped object to interceptor');
-    assert.equal(returned, 1, 'returns tapped object');
   });
 
   QUnit.test('Mob .has', function(assert) {
@@ -1233,11 +761,6 @@
       y: 1
     }, Prototest), 'spec can be a function');
 
-    //null edge cases
-    var oCon = {
-      constructor: Object
-    };
-    assert.deepEqual(Mob.map([null, void 0, 5, {}], Mob.partial(Mob.isMatch, Mob, oCon)), [false, false, false, true], 'doesnt falsey match constructor on undefined/null');
   });
 
   QUnit.test('Mob .matcher', function(assert) {
@@ -1276,25 +799,6 @@
         hair: false
       })) === curly, 'returns a predicate that can be used by finding functions.');
     assert.ok(Mob.find(stooges, Mob.matcher(moe)) === moe, 'can be used to locate an object exists in a collection.');
-    assert.deepEqual(Mob.where([null, void 0], {
-      a: 1
-    }), [], 'Do not throw on null values.');
-
-    assert.deepEqual(Mob.where([null, void 0], null), [null, void 0], 'null matches null');
-    assert.deepEqual(Mob.where([null, void 0], {}), [null, void 0], 'null matches {}');
-    assert.deepEqual(Mob.where([{
-      b: 1
-    }], {
-      a: void 0
-    }), [], 'handles undefined values (1683)');
-
-    Mob.each([true, 5, NaN, null, void 0], function(item) {
-      assert.deepEqual(Mob.where([{
-        a: 1
-      }], item), [{
-        a: 1
-      }], 'treats primitives as empty');
-    });
 
     function Prototest() {}
     Prototest.prototype.x = 1;
@@ -1406,123 +910,6 @@
     assert.strictEqual(Mob.findKey(array, function(x) {
       return x === 55;
     }), 'match', 'matches array-likes keys');
-  });
-
-
-  QUnit.test('Mob .mapObject', function(assert) {
-    var obj = {
-      a: 1,
-      b: 2
-    };
-    var objects = {
-      a: {
-        a: 0,
-        b: 0
-      },
-      b: {
-        a: 1,
-        b: 1
-      },
-      c: {
-        a: 2,
-        b: 2
-      }
-    };
-
-    assert.deepEqual(Mob.mapObject(obj, function(val) {
-      return val * 2;
-    }), {
-      a: 2,
-      b: 4
-    }, 'simple objects');
-
-    assert.deepEqual(Mob.mapObject(objects, function(val) {
-      return Mob.reduce(val, function(memo, v) {
-        return memo + v;
-      }, 0);
-    }), {
-      a: 0,
-      b: 2,
-      c: 4
-    }, 'nested objects');
-
-    assert.deepEqual(Mob.mapObject(obj, function(val, key, o) {
-      return o[key] * 2;
-    }), {
-      a: 2,
-      b: 4
-    }, 'correct keys');
-
-    assert.deepEqual(Mob.mapObject([1, 2], function(val) {
-      return val * 2;
-    }), {
-      0: 2,
-      1: 4
-    }, 'check behavior for arrays');
-
-    assert.deepEqual(Mob.mapObject(obj, function(val) {
-      return val * this.multiplier;
-    }, {
-      multiplier: 3
-    }), {
-      a: 3,
-      b: 6
-    }, 'keep context');
-
-    assert.deepEqual(Mob.mapObject({
-      a: 1
-    }, function() {
-      return this.length;
-    }, [1, 2]), {
-      a: 2
-    }, 'called with context');
-
-    var ids = Mob.mapObject({
-      length: 2,
-      0: {
-        id: '1'
-      },
-      1: {
-        id: '2'
-      }
-    }, function(n) {
-      return n.id;
-    });
-    assert.deepEqual(ids, {
-      length: void 0,
-      0: '1',
-      1: '2'
-    }, 'Check with array-like objects');
-
-    // Passing a property name like Mob.pluck.
-    var people = {
-      a: {
-        name: 'moe',
-        age: 30
-      },
-      b: {
-        name: 'curly',
-        age: 50
-      }
-    };
-    assert.deepEqual(Mob.mapObject(people, 'name'), {
-      a: 'moe',
-      b: 'curly'
-    }, 'predicate string map to object properties');
-
-    Mob.each([null, void 0, 1, 'abc', [], {}, void 0], function(val) {
-      assert.deepEqual(Mob.mapObject(val, Mob.identity), {}, 'mapValue identity');
-    });
-
-    var Proto = function() {
-      this.a = 1;
-    };
-    Proto.prototype.b = 1;
-    var protoObj = new Proto();
-    assert.deepEqual(Mob.mapObject(protoObj, Mob.identity), {
-      a: 1
-    }, 'ignore inherited values from prototypes');
-
   });
 
 })();

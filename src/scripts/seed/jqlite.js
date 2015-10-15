@@ -10,7 +10,6 @@ define('mob/jqlite', function(require, exports, module) {
     slice = ArrayProto.slice,
     filter = ArrayProto.filter,
     document = window.document,
-    duuid = 0,
 
     filters,
     fragmentRE = /^\s*<(\w+|!)[^>]*>/,
@@ -63,6 +62,7 @@ define('mob/jqlite', function(require, exports, module) {
       'frameborder': 'frameBorder',
       'contenteditable': 'contentEditable'
     },
+    duuid = 0,
     dataCache = {},
     dataExp = 'JQLite' + lang.now(),
 

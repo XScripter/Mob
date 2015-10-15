@@ -28,18 +28,6 @@
   );
   iDoc.close();
 
-  QUnit.test('Mob .isEqual', function(assert) {
-
-    assert.ok(!Mob.isEqual(iNumber, 101));
-    assert.ok(Mob.isEqual(iNumber, 100));
-
-    // Objects from another frame.
-    assert.ok(Mob.isEqual({}, iObject), 'Objects with equivalent members created in different documents are equal');
-
-    // Array from another frame.
-    assert.ok(Mob.isEqual([1, 2, 3], iArray), 'Arrays with equivalent elements created in different documents are equal');
-  });
-
   QUnit.test('Mob .isEmpty', function(assert) {
     assert.ok(!Mob.isEmpty(iArray), '[] is empty');
     assert.ok(Mob.isEmpty(iObject), '{} is empty');
