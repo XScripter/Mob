@@ -26,10 +26,10 @@ Mob.Module = function() {
 
   require = function(id) {
     if (!modules[id]) {
-      throw 'module ' + id + ' not found';
+      throw '模块【' + id + '】没有定义！';
     } else if (id in inProgressModules) {
       var cycle = requireStack.slice(inProgressModules[id]).join('->') + '->' + id;
-      throw 'Cycle in module require graph: ' + cycle;
+      throw '模块与模块不能同时相互依赖: ' + cycle;
     }
     if (modules[id].factory) {
       try {
@@ -46,7 +46,7 @@ Mob.Module = function() {
 
   define = function(id, factory) {
     if (modules[id]) {
-      throw 'module ' + id + ' already defined';
+      throw '模块【' + id + '】已经存在，不能重复定义！';
     }
     modules[id] = {
       id: id,

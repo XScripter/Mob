@@ -3,7 +3,6 @@ define('mob/logger', function(require, exports, module) {
   var lang = require('mob/lang');
 
   var Logger = {};
-
   var logHandler;
   var contextualLoggersByNameMap = {};
 
@@ -24,26 +23,26 @@ define('mob/logger', function(require, exports, module) {
   Logger.INFO = defineLogLevel(2, 'INFO');
   Logger.TIME = defineLogLevel(3, 'TIME');
   Logger.WARN = defineLogLevel(4, 'WARN');
-  Logger.ERROR = defineLogLevel(8, 'ERROR');
-  Logger.OFF = defineLogLevel(99, 'OFF');
+  Logger.ERROR = defineLogLevel(5, 'ERROR');
+  Logger.OFF = defineLogLevel(6, 'OFF');
 
-  var ContextualLogger = function(defaultContext) {
+  var LoggerClass = function(defaultContext) {
     this.context = defaultContext;
     this.setLevel(defaultContext.filterLevel);
     this.log = this.info;
   };
 
-  ContextualLogger.prototype = {
+  LoggerClass.prototype = {
 
     setLevel: function(newLevel) {
-      if (newLevel && 'value' in newLevel) {
+      if (newLevel && ('value' in newLevel)) {
         this.context.filterLevel = newLevel;
       }
     },
 
-    enabledFor: function(lvl) {
+    enabledFor: function(level) {
       var filterLevel = this.context.filterLevel;
-      return lvl.value >= filterLevel.value;
+      return level.value >= filterLevel.value;
     },
 
     debug: function() {
@@ -63,13 +62,13 @@ define('mob/logger', function(require, exports, module) {
     },
 
     time: function(label) {
-      if (typeof label === 'string' && label.length > 0) {
+      if (lang.isString(label) && label.length > 0) {
         this.invoke(Logger.TIME, [label, 'start']);
       }
     },
 
     timeEnd: function(label) {
-      if (typeof label === 'string' && label.length > 0) {
+      if (lang.isString(label) && label.length > 0) {
         this.invoke(Logger.TIME, [label, 'end']);
       }
     },
@@ -83,7 +82,7 @@ define('mob/logger', function(require, exports, module) {
     }
   };
 
-  var globalLogger = new ContextualLogger({
+  var globalLogger = new LoggerClass({
     filterLevel: Logger.OFF
   });
 
@@ -109,7 +108,7 @@ define('mob/logger', function(require, exports, module) {
 
   Logger.get = function(name) {
     return contextualLoggersByNameMap[name] ||
-      (contextualLoggersByNameMap[name] = new ContextualLogger(lang.extend({
+      (contextualLoggersByNameMap[name] = new LoggerClass(lang.extend({
         name: name
       }, globalLogger.context)));
   };
@@ -119,21 +118,15 @@ define('mob/logger', function(require, exports, module) {
 
     options.formatter = options.formatter || defaultMessageFormatter;
 
-    if (typeof console === 'undefined') {
+    if (lang.isUndefined(console)) {
       return;
     }
-
-    var timerStartTimeByLabelMap = {};
-
-    var invokeConsoleMethod = function(hdlr, messages) {
-      Function.prototype.apply.call(hdlr, console, messages);
-    };
 
     Logger.setLevel(options.defaultLevel || Logger.DEBUG);
     Logger.setHandler(function(messages, context) {
       messages = Array.prototype.slice.call(messages);
 
-      var hdlr = console.log;
+      var logFn = console.log;
       var timerLabel;
 
       if (context.level === Logger.TIME) {
@@ -142,27 +135,23 @@ define('mob/logger', function(require, exports, module) {
         if (messages[1] === 'start') {
           if (console.time) {
             console.time(timerLabel);
-          } else {
-            timerStartTimeByLabelMap[timerLabel] = new Date().getTime();
           }
         } else {
           if (console.timeEnd) {
             console.timeEnd(timerLabel);
-          } else {
-            invokeConsoleMethod(hdlr, [timerLabel + ': ' + (new Date().getTime() - timerStartTimeByLabelMap[timerLabel]) + 'ms']);
           }
         }
       } else {
-        if (context.level === Logger.WARN && console.warn) {
-          hdlr = console.warn;
-        } else if (context.level === Logger.ERROR && console.error) {
-          hdlr = console.error;
-        } else if (context.level === Logger.INFO && console.info) {
-          hdlr = console.info;
+        if (context.level === Logger.WARN) {
+          logFn = console.warn;
+        } else if (context.level === Logger.ERROR) {
+          logFn = console.error;
+        } else if (context.level === Logger.INFO) {
+          logFn = console.info;
         }
 
         options.formatter(messages, context);
-        invokeConsoleMethod(hdlr, messages);
+        logFn.apply(console, messages);
       }
     });
   };

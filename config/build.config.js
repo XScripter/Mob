@@ -76,7 +76,6 @@ module.exports = {
       'src/scripts/Mob.js',
 
       // seed
-      'src/scripts/seed/helper.js',
       'src/scripts/seed/module.js',
       'src/scripts/seed/lang.js',
       'src/scripts/seed/logger.js',
