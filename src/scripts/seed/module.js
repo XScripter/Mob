@@ -48,7 +48,6 @@ Mob.Module = function() {
     if (modules[id]) {
       throw 'module ' + id + ' already defined';
     }
-
     modules[id] = {
       id: id,
       factory: factory
@@ -56,19 +55,14 @@ Mob.Module = function() {
   };
 
   return {
-
     require: require,
-
     define: define,
-
     remove: function(id) {
       delete modules[id];
     },
-
     map: function() {
       return modules;
     }
-
   };
 
 }();
