@@ -2,7 +2,7 @@ var previousMob = root.Mob;
 
 var Mob = {};
 
-var M$ = Mob.$ = $;
+Mob.$ = $;
 
 Mob.VERSION = '$VERSION';
 

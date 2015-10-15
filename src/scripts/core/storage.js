@@ -128,14 +128,14 @@ define('mob/storage', function(require, exports, module) {
 
     _addKey: function(key) {
       var keys = this.keys();
-      if (lang.inArray(key, keys) == -1) {
+      if (lang.indexOf(keys, key) == -1) {
         keys.push(key);
       }
       this.set(this.meta_key, keys);
     },
     _removeKey: function(key) {
       var keys = this.keys();
-      var index = lang.inArray(key, keys);
+      var index = lang.indexOf(keys, key);
       if (index != -1) {
         keys.splice(index, 1);
       }
