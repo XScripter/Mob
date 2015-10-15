@@ -2,21 +2,16 @@ define('mob/lang', function(require, exports, module) {
 
   var lang = {};
 
-  // Save bytes in the minified (but not gzipped) version:
   var ArrayProto = Array.prototype,
     ObjProto = Object.prototype,
     FuncProto = Function.prototype;
 
-  // Create quick reference variables for speed access to core prototypes.
-  var
+  var push = ArrayProto.push,
     slice = ArrayProto.slice,
     toString = ObjProto.toString,
     hasOwnProperty = ObjProto.hasOwnProperty;
 
-  // All **ECMAScript 5** native function implementations that we hope to use
-  // are declared here.
-  var
-    nativeIsArray = Array.isArray,
+  var nativeIsArray = Array.isArray,
     nativeKeys = Object.keys,
     nativeBind = FuncProto.bind,
     nativeCreate = Object.create;
@@ -97,8 +92,7 @@ define('mob/lang', function(require, exports, module) {
     return typeof length == 'number' && length >= 0 && length <= MAX_ARRAY_INDEX;
   };
 
-  // Collection Functions
-  // --------------------
+// ================== collections ======================
 
   lang.each = function(obj, iteratee, context) {
     iteratee = optimizeCb(iteratee, context);
@@ -128,7 +122,10 @@ define('mob/lang', function(require, exports, module) {
     return results;
   };
 
+// Create a reducing function iterating left or right.
   function createReduce(dir) {
+    // Optimized iterator function as using arguments.length
+    // in the main function will deoptimize the, see #1991.
     function iterator(obj, iteratee, memo, keys, index, length) {
       for (; index >= 0 && index < length; index += dir) {
         var currentKey = keys ? keys[index] : index;
@@ -227,6 +224,58 @@ define('mob/lang', function(require, exports, module) {
     return lang.find(obj, lang.matcher(attrs));
   };
 
+  lang.max = function(obj, iteratee, context) {
+    var result = -Infinity,
+      lastComputed = -Infinity,
+      value, computed;
+    if (iteratee == null && obj != null) {
+      obj = isArrayLike(obj) ? obj : lang.values(obj);
+      for (var i = 0, length = obj.length; i < length; i++) {
+        value = obj[i];
+        if (value > result) {
+          result = value;
+        }
+      }
+    } else {
+      iteratee = cb(iteratee, context);
+      lang.each(obj, function(value, index, list) {
+        computed = iteratee(value, index, list);
+        if (computed > lastComputed || computed === -Infinity && result === -Infinity) {
+          result = value;
+          lastComputed = computed;
+        }
+      });
+    }
+    return result;
+  };
+
+  lang.min = function(obj, iteratee, context) {
+    var result = Infinity,
+      lastComputed = Infinity,
+      value, computed;
+    if (iteratee == null && obj != null) {
+      obj = isArrayLike(obj) ? obj : lang.values(obj);
+      for (var i = 0, length = obj.length; i < length; i++) {
+        value = obj[i];
+        if (value < result) {
+          result = value;
+        }
+      }
+    } else {
+      iteratee = cb(iteratee, context);
+      lang.each(obj, function(value, index, list) {
+        computed = iteratee(value, index, list);
+        if (computed < lastComputed || computed === Infinity && result === Infinity) {
+          result = value;
+          lastComputed = computed;
+        }
+      });
+    }
+    return result;
+  };
+
+// Shuffle a collection, using the modern version of the
+// [Fisher-Yates shuffle](http://en.wikipedia.org/wiki/Fisher–Yates_shuffle).
   lang.shuffle = function(obj) {
     var set = isArrayLike(obj) ? obj : lang.values(obj);
     var length = set.length;
@@ -314,8 +363,7 @@ define('mob/lang', function(require, exports, module) {
     return [pass, fail];
   };
 
-  // Array Functions
-  // ---------------
+// ================== arrays ======================
 
   lang.first = function(array, n, guard) {
     if (array == null) return void 0;
@@ -422,6 +470,20 @@ define('mob/lang', function(require, exports, module) {
     });
   };
 
+  lang.zip = function() {
+    return lang.unzip(arguments);
+  };
+
+  lang.unzip = function(array) {
+    var length = array && lang.max(array, getLength).length || 0;
+    var result = Array(length);
+
+    for (var index = 0; index < length; index++) {
+      result[index] = lang.pluck(array, index);
+    }
+    return result;
+  };
+
   lang.object = function(list, values) {
     var result = {};
     for (var i = 0, length = getLength(list); i < length; i++) {
@@ -507,181 +569,35 @@ define('mob/lang', function(require, exports, module) {
     return range;
   };
 
-  // Function (ahem) Functions
-  // ------------------
-
-  var executeBound = function(sourceFunc, boundFunc, context, callingContext, args) {
-    if (!(callingContext instanceof boundFunc)) return sourceFunc.apply(context, args);
-    var self = baseCreate(sourceFunc.prototype);
-    var result = sourceFunc.apply(self, args);
-    if (lang.isObject(result)) return result;
-    return self;
+  lang.inArray = function(elem, array, i) {
+    return [].indexOf.call(array, elem, i);
   };
 
-  lang.bind = function(func, context) {
-    if (nativeBind && func.bind === nativeBind) return nativeBind.apply(func, slice.call(arguments, 1));
-    if (!lang.isFunction(func)) throw new TypeError('Bind must be called on a function');
-    var args = slice.call(arguments, 2);
-    var bound = function() {
-      return executeBound(func, bound, context, this, args.concat(slice.call(arguments)));
-    };
-    return bound;
-  };
+// ================== objects ======================
 
-  lang.partial = function(func) {
-    var boundArgs = slice.call(arguments, 1);
-    var bound = function() {
-      var position = 0,
-        length = boundArgs.length;
-      var args = Array(length);
-      for (var i = 0; i < length; i++) {
-        args[i] = boundArgs[i] === Mob ? arguments[position++] : boundArgs[i];
+  var hasEnumBug = !{
+    toString: null
+  }.propertyIsEnumerable('toString');
+  var nonEnumerableProps = ['valueOf', 'isPrototypeOf', 'toString',
+    'propertyIsEnumerable', 'hasOwnProperty', 'toLocaleString'
+  ];
+
+  function collectNonEnumProps(obj, keys) {
+    var nonEnumIdx = nonEnumerableProps.length;
+    var constructor = obj.constructor;
+    var proto = (lang.isFunction(constructor) && constructor.prototype) || ObjProto;
+
+    // Constructor is a special case.
+    var prop = 'constructor';
+    if (lang.has(obj, prop) && !lang.contains(keys, prop)) keys.push(prop);
+
+    while (nonEnumIdx--) {
+      prop = nonEnumerableProps[nonEnumIdx];
+      if (prop in obj && obj[prop] !== proto[prop] && !lang.contains(keys, prop)) {
+        keys.push(prop);
       }
-      while (position < arguments.length) args.push(arguments[position++]);
-      return executeBound(func, bound, this, this, args);
-    };
-    return bound;
-  };
-
-  lang.bindAll = function(obj) {
-    var i, length = arguments.length,
-      key;
-    if (length <= 1) throw new Error('bindAll must be passed function names');
-    for (i = 1; i < length; i++) {
-      key = arguments[i];
-      obj[key] = lang.bind(obj[key], obj);
     }
-    return obj;
-  };
-
-  lang.memoize = function(func, hasher) {
-    var memoize = function(key) {
-      var cache = memoize.cache;
-      var address = '' + (hasher ? hasher.apply(this, arguments) : key);
-      if (!lang.has(cache, address)) cache[address] = func.apply(this, arguments);
-      return cache[address];
-    };
-    memoize.cache = {};
-    return memoize;
-  };
-
-  lang.delay = function(func, wait) {
-    var args = slice.call(arguments, 2);
-    return setTimeout(function() {
-      return func.apply(null, args);
-    }, wait);
-  };
-
-  lang.defer = lang.partial(lang.delay, Mob, 1);
-
-  lang.throttle = function(func, wait, options) {
-    var context, args, result;
-    var timeout = null;
-    var previous = 0;
-    if (!options) options = {};
-    var later = function() {
-      previous = options.leading === false ? 0 : lang.now();
-      timeout = null;
-      result = func.apply(context, args);
-      if (!timeout) context = args = null;
-    };
-    return function() {
-      var now = lang.now();
-      if (!previous && options.leading === false) previous = now;
-      var remaining = wait - (now - previous);
-      context = this;
-      args = arguments;
-      if (remaining <= 0 || remaining > wait) {
-        if (timeout) {
-          clearTimeout(timeout);
-          timeout = null;
-        }
-        previous = now;
-        result = func.apply(context, args);
-        if (!timeout) context = args = null;
-      } else if (!timeout && options.trailing !== false) {
-        timeout = setTimeout(later, remaining);
-      }
-      return result;
-    };
-  };
-
-  lang.debounce = function(func, wait, immediate) {
-    var timeout, args, context, timestamp, result;
-
-    var later = function() {
-      var last = lang.now() - timestamp;
-
-      if (last < wait && last >= 0) {
-        timeout = setTimeout(later, wait - last);
-      } else {
-        timeout = null;
-        if (!immediate) {
-          result = func.apply(context, args);
-          if (!timeout) context = args = null;
-        }
-      }
-    };
-
-    return function() {
-      context = this;
-      args = arguments;
-      timestamp = lang.now();
-      var callNow = immediate && !timeout;
-      if (!timeout) timeout = setTimeout(later, wait);
-      if (callNow) {
-        result = func.apply(context, args);
-        context = args = null;
-      }
-
-      return result;
-    };
-  };
-
-  lang.wrap = function(func, wrapper) {
-    return lang.partial(wrapper, func);
-  };
-
-  lang.negate = function(predicate) {
-    return function() {
-      return !predicate.apply(this, arguments);
-    };
-  };
-
-  lang.compose = function() {
-    var args = arguments;
-    var start = args.length - 1;
-    return function() {
-      var i = start;
-      var result = args[start].apply(this, arguments);
-      while (i--) result = args[i].call(this, result);
-      return result;
-    };
-  };
-
-  lang.after = function(times, func) {
-    return function() {
-      if (--times < 1) {
-        return func.apply(this, arguments);
-      }
-    };
-  };
-
-  lang.before = function(times, func) {
-    var memo;
-    return function() {
-      if (--times > 0) {
-        memo = func.apply(this, arguments);
-      }
-      if (times <= 1) func = null;
-      return memo;
-    };
-  };
-
-  lang.once = lang.partial(lang.before, 2);
-
-  // Object Functions
-  // ----------------
+  }
 
   lang.keys = function(obj) {
     if (!lang.isObject(obj)) return [];
@@ -689,6 +605,8 @@ define('mob/lang', function(require, exports, module) {
     var keys = [];
     for (var key in obj)
       if (lang.has(obj, key)) keys.push(key);
+    // Ahem, IE < 9.
+    if (hasEnumBug) collectNonEnumProps(obj, keys);
     return keys;
   };
 
@@ -696,6 +614,8 @@ define('mob/lang', function(require, exports, module) {
     if (!lang.isObject(obj)) return [];
     var keys = [];
     for (var key in obj) keys.push(key);
+    // Ahem, IE < 9.
+    if (hasEnumBug) collectNonEnumProps(obj, keys);
     return keys;
   };
 
@@ -751,7 +671,9 @@ define('mob/lang', function(require, exports, module) {
 
   lang.extend = createAssigner(lang.allKeys);
 
-  lang.assign = createAssigner(lang.keys);
+// Assigns a given object with all the own properties in the passed-in object(s)
+// (https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object/assign)
+  lang.extendOwn = lang.assign = createAssigner(lang.keys);
 
   lang.findKey = function(obj, predicate, context) {
     predicate = cb(predicate, context);
@@ -802,7 +724,7 @@ define('mob/lang', function(require, exports, module) {
 
   lang.create = function(prototype, props) {
     var result = baseCreate(prototype);
-    if (props) lang.assign(result, props);
+    if (props) lang.extendOwn(result, props);
     return result;
   };
 
@@ -829,6 +751,7 @@ define('mob/lang', function(require, exports, module) {
   };
 
 
+// Internal recursive comparison function for `isEqual`.
   var eq = function(a, b, aStack, bStack) {
     // Identical objects are equal. `0 === -0`, but they aren't identical.
     // See the [Harmony `egal` proposal](http://wiki.ecmascript.org/doku.php?id=harmony:egal).
@@ -937,23 +860,30 @@ define('mob/lang', function(require, exports, module) {
       return toString.call(obj) === '[object Array]';
     };
 
-  var isObject = lang.isObject = function(obj) {
+  lang.isObject = function(obj) {
     var type = typeof obj;
     return type === 'function' || type === 'object' && !!obj;
   };
 
+// Add some isType methods: isArguments, isFunction, isString, isNumber, isDate, isRegExp, isError.
   lang.each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp', 'Error'], function(name) {
     lang['is' + name] = function(obj) {
       return toString.call(obj) === '[object ' + name + ']';
     };
   });
 
-  if (!lang.isArguments(arguments)) {
-    lang.isArguments = function(obj) {
-      return lang.has(obj, 'callee');
-    };
-  }
+// Define a fallback version of the method in browsers (ahem, IE < 9), where
+// there isn't any inspectable "Arguments" type.
+  (function() {
+    if (!lang.isArguments(arguments)) {
+      lang.isArguments = function(obj) {
+        return lang.has(obj, 'callee');
+      };
+    }
+  })();
 
+// Optimize `isFunction` if appropriate. Work around some typeof bugs in old v8,
+// IE 11 (#1621), and in Safari 8 (#1929).
   if (typeof /./ != 'function' && typeof Int8Array != 'object') {
     lang.isFunction = function(obj) {
       return typeof obj == 'function' || false;
@@ -980,12 +910,12 @@ define('mob/lang', function(require, exports, module) {
     return obj === void 0;
   };
 
-  var isWindow = lang.isWindow = function(obj) {
+  lang.isWindow = function(obj) {
     return obj != null && obj == obj.window;
   };
 
   lang.isPlainObject = function(obj) {
-    return isObject(obj) && !isWindow(obj) && Object.getPrototypeOf(obj) == Object.prototype;
+    return lang.isObject(obj) && !lang.isWindow(obj) && Object.getPrototypeOf(obj) == Object.prototype;
   };
 
   lang.isDocument = function(obj) {
@@ -996,8 +926,232 @@ define('mob/lang', function(require, exports, module) {
     return obj != null && hasOwnProperty.call(obj, key);
   };
 
-  // Utility Functions
-  // -----------------
+// Helper function to correctly set up the prototype chain for subclasses.
+// Similar to `goog.inherits`, but uses a hash of prototype properties and
+// class properties to be extended.
+  lang.inherits = function(protoProps, staticProps) {
+    var parent = this;
+    var child;
+
+    // The constructor function for the new subclass is either defined by you
+    // (the "constructor" property in your `extend` definition), or defaulted
+    // by us to simply call the parent constructor.
+    if (protoProps && lang.has(protoProps, 'constructor')) {
+      child = protoProps.constructor;
+    } else {
+      child = function() {
+        return parent.apply(this, arguments);
+      };
+    }
+
+    // Add static properties to the constructor function, if supplied.
+    lang.extend(child, parent, staticProps);
+
+    // Set the prototype chain to inherit from `parent`, without calling
+    // `parent` constructor function.
+    var Surrogate = function() {
+      this.constructor = child;
+    };
+    Surrogate.prototype = parent.prototype;
+    child.prototype = new Surrogate;
+
+    // Add prototype properties (instance properties) to the subclass,
+    // if supplied.
+    if (protoProps) lang.extend(child.prototype, protoProps);
+
+    // Set a convenience property in case the parent's prototype is needed
+    // later.
+    child.__super__ = parent.prototype;
+
+    return child;
+  };
+
+  lang.inArray = function(elem, array, i) {
+    return [].indexOf.call(array, elem, i);
+  };
+
+// ================== functions ======================
+
+  var executeBound = function(sourceFunc, boundFunc, context, callingContext, args) {
+    if (!(callingContext instanceof boundFunc)) return sourceFunc.apply(context, args);
+    var self = baseCreate(sourceFunc.prototype);
+    var result = sourceFunc.apply(self, args);
+    if (lang.isObject(result)) return result;
+    return self;
+  };
+
+  lang.bind = function(func, context) {
+    if (nativeBind && func.bind === nativeBind) return nativeBind.apply(func, slice.call(arguments, 1));
+    if (!lang.isFunction(func)) throw new TypeError('Bind must be called on a function');
+    var args = slice.call(arguments, 2);
+    var bound = function() {
+      return executeBound(func, bound, context, this, args.concat(slice.call(arguments)));
+    };
+    return bound;
+  };
+
+  lang.partial = function(func) {
+    var boundArgs = slice.call(arguments, 1);
+    var bound = function() {
+      var position = 0,
+        length = boundArgs.length;
+      var args = Array(length);
+      for (var i = 0; i < length; i++) {
+        args[i] = boundArgs[i] === lang ? arguments[position++] : boundArgs[i];
+      }
+      while (position < arguments.length) args.push(arguments[position++]);
+      return executeBound(func, bound, this, this, args);
+    };
+    return bound;
+  };
+
+  lang.bindAll = function(obj) {
+    var i, length = arguments.length,
+      key;
+    if (length <= 1) throw new Error('bindAll must be passed function names');
+    for (i = 1; i < length; i++) {
+      key = arguments[i];
+      obj[key] = lang.bind(obj[key], obj);
+    }
+    return obj;
+  };
+
+  lang.memoize = function(func, hasher) {
+    var memoize = function(key) {
+      var cache = memoize.cache;
+      var address = '' + (hasher ? hasher.apply(this, arguments) : key);
+      if (!lang.has(cache, address)) cache[address] = func.apply(this, arguments);
+      return cache[address];
+    };
+    memoize.cache = {};
+    return memoize;
+  };
+
+  lang.delay = function(func, wait) {
+    var args = slice.call(arguments, 2);
+    return setTimeout(function() {
+      return func.apply(null, args);
+    }, wait);
+  };
+
+  lang.defer = lang.partial(lang.delay, lang, 1);
+
+// Returns a function, that, when invoked, will only be triggered at most once
+// during a given window of time. Normally, the throttled function will run
+// as much as it can, without ever going more than once per `wait` duration;
+// but if you'd like to disable the execution on the leading edge, pass
+// `{leading: false}`. To disable execution on the trailing edge, ditto.
+  lang.throttle = function(func, wait, options) {
+    var context, args, result;
+    var timeout = null;
+    var previous = 0;
+    if (!options) options = {};
+    var later = function() {
+      previous = options.leading === false ? 0 : lang.now();
+      timeout = null;
+      result = func.apply(context, args);
+      if (!timeout) context = args = null;
+    };
+    return function() {
+      var now = lang.now();
+      if (!previous && options.leading === false) previous = now;
+      var remaining = wait - (now - previous);
+      context = this;
+      args = arguments;
+      if (remaining <= 0 || remaining > wait) {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+        previous = now;
+        result = func.apply(context, args);
+        if (!timeout) context = args = null;
+      } else if (!timeout && options.trailing !== false) {
+        timeout = setTimeout(later, remaining);
+      }
+      return result;
+    };
+  };
+
+// Returns a function, that, as long as it continues to be invoked, will not
+// be triggered. The function will be called after it stops being called for
+// N milliseconds. If `immediate` is passed, trigger the function on the
+// leading edge, instead of the trailing.
+  lang.debounce = function(func, wait, immediate) {
+    var timeout, args, context, timestamp, result;
+
+    var later = function() {
+      var last = lang.now() - timestamp;
+
+      if (last < wait && last >= 0) {
+        timeout = setTimeout(later, wait - last);
+      } else {
+        timeout = null;
+        if (!immediate) {
+          result = func.apply(context, args);
+          if (!timeout) context = args = null;
+        }
+      }
+    };
+
+    return function() {
+      context = this;
+      args = arguments;
+      timestamp = lang.now();
+      var callNow = immediate && !timeout;
+      if (!timeout) timeout = setTimeout(later, wait);
+      if (callNow) {
+        result = func.apply(context, args);
+        context = args = null;
+      }
+
+      return result;
+    };
+  };
+
+  lang.wrap = function(func, wrapper) {
+    return lang.partial(wrapper, func);
+  };
+
+  lang.negate = function(predicate) {
+    return function() {
+      return !predicate.apply(this, arguments);
+    };
+  };
+
+  lang.compose = function() {
+    var args = arguments;
+    var start = args.length - 1;
+    return function() {
+      var i = start;
+      var result = args[start].apply(this, arguments);
+      while (i--) result = args[i].call(this, result);
+      return result;
+    };
+  };
+
+  lang.after = function(times, func) {
+    return function() {
+      if (--times < 1) {
+        return func.apply(this, arguments);
+      }
+    };
+  };
+
+  lang.before = function(times, func) {
+    var memo;
+    return function() {
+      if (--times > 0) {
+        memo = func.apply(this, arguments);
+      }
+      if (times <= 1) func = null;
+      return memo;
+    };
+  };
+
+  lang.once = lang.partial(lang.before, 2);
+
+// ================== utility ======================
 
   lang.identity = function(value) {
     return value;
@@ -1019,8 +1173,8 @@ define('mob/lang', function(require, exports, module) {
     };
   };
 
-  lang.matcher = function(attrs) {
-    attrs = lang.assign({}, attrs);
+  lang.matcher = lang.matches = function(attrs) {
+    attrs = lang.extendOwn({}, attrs);
     return function(obj) {
       return lang.isMatch(obj, attrs);
     };
@@ -1045,6 +1199,7 @@ define('mob/lang', function(require, exports, module) {
       return new Date().getTime();
     };
 
+// List of HTML entities for escaping.
   var escapeMap = {
     '&': '&amp;',
     '<': '&lt;',
@@ -1059,7 +1214,6 @@ define('mob/lang', function(require, exports, module) {
     var escaper = function(match) {
       return map[match];
     };
-    // Regexes for identifying a key that needs to be escaped
     var source = '(?:' + lang.keys(map).join('|') + ')';
     var testRegexp = RegExp(source);
     var replaceRegexp = RegExp(source, 'g');
@@ -1085,14 +1239,64 @@ define('mob/lang', function(require, exports, module) {
     return prefix ? prefix + id : id;
   };
 
+  lang.getParameterByName = function(name) {
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    var regex = new RegExp('[\\?&]' + name + '=([^&#]*)'),
+      results = regex.exec(location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+  };
+
   lang.camelize = function(str) {
     return str.replace(/-+(.)?/g, function(match, chr) {
       return chr ? chr.toUpperCase() : '';
     });
   };
 
+// ================== dom ======================
+
+  var _requestAnimationFrame = (function() {
+    return window.requestAnimationFrame ||
+      window.webkitRequestAnimationFrame ||
+      window.mozRequestAnimationFrame ||
+      function(callback) {
+        window.setTimeout(callback, 16);
+      };
+  })();
+
+  var cancelAnimationFrame = window.cancelAnimationFrame ||
+    window.webkitCancelAnimationFrame ||
+    window.mozCancelAnimationFrame ||
+    window.webkitCancelRequestAnimationFrame;
+
+  lang.requestAnimationFrame = function(cb) {
+    return _requestAnimationFrame(cb);
+  };
+
+  lang.cancelAnimationFrame = function(requestId) {
+    cancelAnimationFrame(requestId);
+  };
+
+  lang.animationFrameThrottle = function(cb) {
+    var args, isQueued, context;
+    return function() {
+      args = arguments;
+      context = this;
+      if (!isQueued) {
+        isQueued = true;
+        lang.requestAnimationFrame(function() {
+          cb.apply(context, args);
+          isQueued = false;
+        });
+      }
+    };
+  };
+
+  lang.adjustTitle = function(title) {
+    lang.requestAnimationFrame(function() {
+      document.title = title;
+    });
+  };
+
   module.exports = lang;
 
 });
-var lang = require('mob/lang');
-lang.extend(Mob, lang);

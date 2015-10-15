@@ -170,7 +170,3 @@ define('mob/logger', function(require, exports, module) {
   module.exports = Logger;
 
 });
-Mob.Logger = require('mob/logger');
-Mob.each(['debug', 'time', 'timeEnd', 'info', 'warn', 'error', 'log'], function(method) {
-  Mob[method] = Mob.Logger[method];
-});

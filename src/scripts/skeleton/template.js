@@ -110,5 +110,3 @@ define('mob/template', function(require, exports, module) {
   module.exports = Template;
 
 });
-
-Mob.Template = require('mob/template');
