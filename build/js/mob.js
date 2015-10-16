@@ -10,7 +10,7 @@
  * 
  * Licensed under MIT
  * 
- * Released on: October 15, 2015
+ * Released on: October 16, 2015
  */
 (function(factory) {
   var root = (typeof self == 'object' && self.self == self && self) ||
@@ -1597,7 +1597,7 @@
   
     function deserializeValue(value) {
       try {
-        return value ? value == 'true' || (value == 'false' ? false : value == 'null' ? null : +value + '' == value ? +value : /^[\[\{]/.test(value) ? $.parseJSON(value) : value) : value;
+        return value ? value == 'true' || (value == 'false' ? false : value == 'null' ? null : +value + '' == value ? +value : /^[\[\{]/.test(value) ? JSON.parse(value) : value) : value;
       } catch (e) {
         return value;
       }
@@ -1761,10 +1761,6 @@
       event.initEvent(type, bubbles, true);
       return compatibleEvt(event);
     };
-  
-    if (window.JSON) {
-      $.parseJSON = JSON.parse;
-    }
   
     jqlite.jQ = function(dom, selector) {
       dom = dom || [];
