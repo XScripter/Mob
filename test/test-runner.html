@@ -247,6 +247,42 @@
 
 </div>
 
+<div id="fixtures-data">
+    <div id="data_attr"
+         data-one="uno"
+         data-two="due"
+         data-foo-bar="baz"
+         data-under_score="kuuq"
+            ></div>
+    <div id="data_full" data-mode="awesome"></div>
+    <div id="data_obj" data-mode="awesome"></div>
+    <ol id="data_list">
+        <li data-category="arts"></li>
+        <li data-category="science"></li>
+    </ol>
+    <ol id="data_list2">
+        <li></li>
+        <li></li>
+    </ol>
+</div>
+
+<div id="fixtures-event"><div /></div>
+
+<div id="fixtures-selector">
+    <ul id=list><li>one</li><li>two</li></ul>
+    <div class=visibility id=vis>look at me!</div>
+    <div class=visibility id=invis style="display:none">can't see me</div>
+    <ol id=child class=test>
+        <li><span>child1</span></li>
+        <li><span>child2</span>
+            <ul>
+                <li><span>child3</span></li>
+                <li><span>child4</span></li>
+            </ul>
+        </li>
+    </ol>
+</div>
+
 <script src="./vendor/qunit.js"></script>
 <script src="./vendor/sinon-1.14.1.js"></script>
 <script src="../build/js/mob.js"></script>
@@ -261,6 +297,9 @@
 <script src="./seed/lang-cross-document.js"></script>
 
 <script src="./seed/jqlite.js"></script>
+<script src="./seed/jqlite-data.js"></script>
+<script src="./seed/jqlite-event.js"></script>
+<script src="./seed/jqlite-selector.js"></script>
 
 <script src="./skeleton/template.js"></script>
 </body>
