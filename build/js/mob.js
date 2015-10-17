@@ -7449,33 +7449,7 @@
   
     var lang = require('mob/lang');
     var Logger = require('mob/logger');
-  
-    if (!Function.prototype.bind) {
-      Function.prototype.bind = function(object) {
-        var originalFunction = this,
-          args = Array.prototype.slice.call(arguments);
-        object = args.shift();
-        return function() {
-          return originalFunction.apply(object, args.concat(Array.prototype.slice.call(arguments)));
-        };
-      };
-    }
-  
-    function addHashchangeListener(el, listener) {
-      if (el.addEventListener) {
-        el.addEventListener('hashchange', listener, false);
-      } else if (el.attachEvent) {
-        el.attachEvent('hashchange', listener);
-      }
-    }
-  
-    function removeHashchangeListener(el, listener) {
-      if (el.removeEventListener) {
-        el.removeEventListener('hashchange', listener, false);
-      } else if (el.detachEvent) {
-        el.detachEvent('hashchange', listener);
-      }
-    }
+    var $ = require('mob/jqlite');
   
     var ROUTER_PATH_REPLACER = "([^\/\\?]+)",
       ROUTER_PATH_NAME_MATCHER = /:([\w\d]+)/g,
@@ -7486,15 +7460,10 @@
       ROUTER_LEADING_BACKSLASHES_MATCH = /\/*$/;
   
     var RouterRequest = function(href) {
-  
       this.href = href;
-  
       this.params;
-  
       this.query;
-  
       this.splat;
-  
       this.hasNext = false;
     };
   
@@ -7516,18 +7485,16 @@
           Logger.warn('Router : ' + httpCode);
         },
         '_404': function(err, url) {
-          if (console && console.warn) console.warn('404! Unmatched route for url ' + url);
+           Logger.warn('404! Unmatched route for url ' + url);
         },
         '_500': function(err, url) {
-          if (console && console.error) console.error('500! Internal error route for url ' + url);
-          else {
-            throw new Error('500');
-          }
+          Logger.error('500! Internal error route for url ' + url);
         }
       };
       this._paused = false;
       this._hasChangeHandler = lang.bind(this._onHashChange, this);
-      addHashchangeListener(window, this._hasChangeHandler);
+  
+      $(window).unbind('hashchange.router').bind('hashchange.router',this._hasChangeHandler);
     };
   
     Router.prototype._onHashChange = function(e) {
@@ -7552,11 +7519,13 @@
     };
   
     Router.prototype._buildRequestObject = function(fragmentUrl, params, splat, hasNext) {
-      if (!fragmentUrl)
+      if (!fragmentUrl) {
         throw new Error('Unable to compile request object');
+      }
       var request = new RouterRequest(fragmentUrl);
-      if (params)
+      if (params) {
         request.params = params;
+      }
       var completeFragment = fragmentUrl.split('?');
       if (completeFragment.length == 2) {
         var queryKeyValue = null;
@@ -7587,7 +7556,6 @@
       if (!route) {
         return this._throwsRouteError(500, new Error('Internal error'), fragmentUrl);
       }
-      /*Combine path parameter name with params passed if any*/
       for (var i = 0, len = route.paramNames.length; i < len; i++) {
         params[route.paramNames[i]] = match[i + 1];
       }
@@ -7601,8 +7569,9 @@
       /*Build next callback*/
       var hasNext = (matchedIndexes.length !== 0);
   
-      var next = function(uO, u, mI, hasNext) {
-        return function(hasNext, err, error_code) {
+      var next = lang.bind(function(uO, u, mI, hasNext) {
+  
+        return lang.bind(function(hasNext, err, error_code) {
           if (!hasNext && !err) {
             return this._throwsRouteError(500, 'Cannot call "next" without an error if request.hasNext is false', fragmentUrl);
           }
@@ -7610,8 +7579,10 @@
             return this._throwsRouteError(error_code || 500, err, fragmentUrl);
           }
           this._followRoute(uO, u, mI);
-        }.bind(this, hasNext);
-      }.bind(this)(fragmentUrl, url, matchedIndexes, hasNext);
+        }, this, hasNext);
+  
+      }, this)(fragmentUrl, url, matchedIndexes, hasNext);
+  
       request = this._buildRequestObject(fragmentUrl, params, splat, hasNext);
       route.routeAction(request, next);
     };
@@ -7749,7 +7720,7 @@
     };
   
     Router.prototype.destroy = function() {
-      removeHashchangeListener(window, this._hasChangeHandler);
+      $(window).unbind('hashchange.router');
       return this;
     };
   

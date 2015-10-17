@@ -6,6 +6,8 @@ Mob.each(['debug', 'time', 'timeEnd', 'info', 'warn', 'error', 'log'], function(
   Mob[method] = Mob.Logger[method];
 });
 
+Mob.Error = require('mob/error');
+
 if (Mob.isUndefined(Mob.$)) {
   Mob.$ = require('mob/jqlite');
 }

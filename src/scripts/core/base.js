@@ -2,6 +2,7 @@ define('mob/base', function(require, exports, module) {
 
   var lang = require('mob/lang');
   var $ = require('mob/jqlite');
+  var Error = require('mob/error');
 
   function baseBindFromStrings(target, entity, evt, methods) {
     var methodNames = methods.split(/\s+/);

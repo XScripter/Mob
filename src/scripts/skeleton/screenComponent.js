@@ -2,6 +2,7 @@ define('mob/screenComponent', function(require, exports, module) {
 
   var lang = require('mob/lang');
   var $ = require('mob/jqlite');
+  var Error = require('mob/error');
 
   var ScreenComponent = {};
 

@@ -2,30 +2,18 @@ define('mob/router', function(require, exports, module) {
 
   var lang = require('mob/lang');
   var Logger = require('mob/logger');
+  var $ = require('mob/jqlite');
+  var Error = require('mob/error');
 
-  var ROUTER_PATH_REPLACER = "([^\/\\?]+)",
+  var isUndefined = lang.isUndefined;
+
+  var ROUTER_PATH_REPLACER = '([^\/\\?]+)',
     ROUTER_PATH_NAME_MATCHER = /:([\w\d]+)/g,
     ROUTER_PATH_EVERY_MATCHER = /\/\*(?!\*)/,
-    ROUTER_PATH_EVERY_REPLACER = "\/([^\/\\?]+)",
+    ROUTER_PATH_EVERY_REPLACER = '\/([^\/\\?]+)',
     ROUTER_PATH_EVERY_GLOBAL_MATCHER = /\*{2}/,
-    ROUTER_PATH_EVERY_GLOBAL_REPLACER = "(.*?)\\??",
+    ROUTER_PATH_EVERY_GLOBAL_REPLACER = '(.*?)\\??',
     ROUTER_LEADING_BACKSLASHES_MATCH = /\/*$/;
-
-  function addHashchangeListener(el, listener) {
-    if (el.addEventListener) {
-      el.addEventListener('hashchange', listener, false);
-    } else if (el.attachEvent) {
-      el.attachEvent('hashchange', listener);
-    }
-  }
-
-  function removeHashchangeListener(el, listener) {
-    if (el.removeEventListener) {
-      el.removeEventListener('hashchange', listener, false);
-    } else if (el.detachEvent) {
-      el.detachEvent('hashchange', listener);
-    }
-  }
 
   var RouterRequest = function(href) {
     this.href = href;
@@ -35,33 +23,34 @@ define('mob/router', function(require, exports, module) {
     this.hasNext = false;
   };
 
-  RouterRequest.prototype.get = function(key, default_value) {
-    return (this.params && this.params[key] !== undefined) ?
-      this.params[key] : (this.query && this.query[key] !== undefined) ?
-      this.query[key] : (default_value !== undefined) ?
-      default_value : undefined;
+  RouterRequest.prototype.get = function(key, defaultValue) {
+    return (this.params && !isUndefined(this.params[key])) ?
+      this.params[key] : (this.query && !isUndefined(this.query[key])) ?
+      this.query[key] : !isUndefined(defaultValue) ? defaultValue : undefined;
   };
 
   var Router = function(options) {
+
     this._options = lang.extend({
       ignorecase: true
     }, options);
+
     this._routes = [];
     this._befores = [];
     this._errors = {
-      '_': function(err, url, httpCode) {
-        Logger.warn('Router : ' + httpCode);
-      },
+      '_': function( /* err, url, httpCode */ ) {},
       '_404': function(err, url) {
-         Logger.warn('404! Unmatched route for url ' + url);
+        Logger.warn('404! 没有找到匹配链接 ' + url + ' 的路由');
       },
       '_500': function(err, url) {
-        Logger.error('500! Internal error route for url ' + url);
+        Logger.error('500! 执行链接 ' + url + ' 匹配路由时出现内部异常');
       }
     };
     this._paused = false;
-    this._hasChangeHandler = lang.bind(this._onHashChange, this);
-    addHashchangeListener(window, this._hasChangeHandler);
+
+    var hasChangeHandler = lang.bind(this._onHashChange, this);
+
+    $(window).unbind('hashchange.router').bind('hashchange.router', hasChangeHandler);
   };
 
   Router.prototype._onHashChange = function(e) {
@@ -72,12 +61,12 @@ define('mob/router', function(require, exports, module) {
   };
 
   Router.prototype._extractFragment = function(url) {
-    var hash_index = url.indexOf('#');
-    return hash_index >= 0 ? url.substring(hash_index) : '#/';
+    var hashIndex = url.indexOf('#');
+    return hashIndex >= 0 ? url.substring(hashIndex) : '#/';
   };
 
   Router.prototype._throwsRouteError = function(httpCode, err, url) {
-    if (this._errors['_' + httpCode] instanceof Function) {
+    if (lang.isFunction(this._errors['_' + httpCode])) {
       this._errors['_' + httpCode](err, url, httpCode);
     } else {
       this._errors._(err, url, httpCode);
@@ -218,7 +207,7 @@ define('mob/router', function(require, exports, module) {
   };
 
   Router.prototype.play = function(triggerNow) {
-    triggerNow = 'undefined' == typeof triggerNow ? false : triggerNow;
+    triggerNow = isUndefined(triggerNow) ? false : triggerNow;
     this._paused = false;
     if (triggerNow) {
       this._route(this._extractFragment(window.location.href));
@@ -250,7 +239,7 @@ define('mob/router', function(require, exports, module) {
       path = new RegExp(path
           .replace(ROUTER_PATH_NAME_MATCHER, ROUTER_PATH_REPLACER)
           .replace(ROUTER_PATH_EVERY_MATCHER, ROUTER_PATH_EVERY_REPLACER)
-          .replace(ROUTER_PATH_EVERY_GLOBAL_MATCHER, ROUTER_PATH_EVERY_GLOBAL_REPLACER) + "(?:\\?.+)?$", modifiers);
+          .replace(ROUTER_PATH_EVERY_GLOBAL_MATCHER, ROUTER_PATH_EVERY_GLOBAL_REPLACER) + '(?:\\?.+)?$', modifiers);
     }
     this._routes.push({
       'path': path,
@@ -287,7 +276,7 @@ define('mob/router', function(require, exports, module) {
   };
 
   Router.prototype.destroy = function() {
-    removeHashchangeListener(window, this._hasChangeHandler);
+    $(window).unbind('hashchange.router');
     return this;
   };
 

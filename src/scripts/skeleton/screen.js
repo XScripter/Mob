@@ -5,6 +5,7 @@ define('mob/screen', function(require, exports, module) {
   var base = require('mob/base');
   var Class = require('mob/class');
   var Transition = require('mob/transition');
+  var Error = require('mob/error');
 
   var Screen = Class.extend({
 

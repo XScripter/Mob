@@ -1,4 +1,5 @@
 var previousMob = root.Mob;
+var undefined;
 
 var Mob = {};
 

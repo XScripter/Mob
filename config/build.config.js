@@ -79,6 +79,7 @@ module.exports = {
       'src/scripts/seed/module.js',
       'src/scripts/seed/lang.js',
       'src/scripts/seed/logger.js',
+      'src/scripts/seed/error.js',
       'src/scripts/seed/jqlite.js',
 
       // core
