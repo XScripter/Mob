@@ -3,16 +3,13 @@ define('mob/router', function(require, exports, module) {
   var lang = require('mob/lang');
   var Logger = require('mob/logger');
 
-  if (!Function.prototype.bind) {
-    Function.prototype.bind = function(object) {
-      var originalFunction = this,
-        args = Array.prototype.slice.call(arguments);
-      object = args.shift();
-      return function() {
-        return originalFunction.apply(object, args.concat(Array.prototype.slice.call(arguments)));
-      };
-    };
-  }
+  var ROUTER_PATH_REPLACER = "([^\/\\?]+)",
+    ROUTER_PATH_NAME_MATCHER = /:([\w\d]+)/g,
+    ROUTER_PATH_EVERY_MATCHER = /\/\*(?!\*)/,
+    ROUTER_PATH_EVERY_REPLACER = "\/([^\/\\?]+)",
+    ROUTER_PATH_EVERY_GLOBAL_MATCHER = /\*{2}/,
+    ROUTER_PATH_EVERY_GLOBAL_REPLACER = "(.*?)\\??",
+    ROUTER_LEADING_BACKSLASHES_MATCH = /\/*$/;
 
   function addHashchangeListener(el, listener) {
     if (el.addEventListener) {
@@ -30,24 +27,11 @@ define('mob/router', function(require, exports, module) {
     }
   }
 
-  var ROUTER_PATH_REPLACER = "([^\/\\?]+)",
-    ROUTER_PATH_NAME_MATCHER = /:([\w\d]+)/g,
-    ROUTER_PATH_EVERY_MATCHER = /\/\*(?!\*)/,
-    ROUTER_PATH_EVERY_REPLACER = "\/([^\/\\?]+)",
-    ROUTER_PATH_EVERY_GLOBAL_MATCHER = /\*{2}/,
-    ROUTER_PATH_EVERY_GLOBAL_REPLACER = "(.*?)\\??",
-    ROUTER_LEADING_BACKSLASHES_MATCH = /\/*$/;
-
   var RouterRequest = function(href) {
-
     this.href = href;
-
     this.params;
-
     this.query;
-
     this.splat;
-
     this.hasNext = false;
   };
 
@@ -69,17 +53,14 @@ define('mob/router', function(require, exports, module) {
         Logger.warn('Router : ' + httpCode);
       },
       '_404': function(err, url) {
-        if (console && console.warn) console.warn('404! Unmatched route for url ' + url);
+         Logger.warn('404! Unmatched route for url ' + url);
       },
       '_500': function(err, url) {
-        if (console && console.error) console.error('500! Internal error route for url ' + url);
-        else {
-          throw new Error('500');
-        }
+        Logger.error('500! Internal error route for url ' + url);
       }
     };
     this._paused = false;
-    this._hasChangeHandler = this._onHashChange.bind(this);
+    this._hasChangeHandler = lang.bind(this._onHashChange, this);
     addHashchangeListener(window, this._hasChangeHandler);
   };
 
@@ -96,20 +77,22 @@ define('mob/router', function(require, exports, module) {
   };
 
   Router.prototype._throwsRouteError = function(httpCode, err, url) {
-    if (this._errors['_' + httpCode] instanceof Function)
+    if (this._errors['_' + httpCode] instanceof Function) {
       this._errors['_' + httpCode](err, url, httpCode);
-    else {
+    } else {
       this._errors._(err, url, httpCode);
     }
     return false;
   };
 
   Router.prototype._buildRequestObject = function(fragmentUrl, params, splat, hasNext) {
-    if (!fragmentUrl)
+    if (!fragmentUrl) {
       throw new Error('Unable to compile request object');
+    }
     var request = new RouterRequest(fragmentUrl);
-    if (params)
+    if (params) {
       request.params = params;
+    }
     var completeFragment = fragmentUrl.split('?');
     if (completeFragment.length == 2) {
       var queryKeyValue = null;
@@ -140,7 +123,6 @@ define('mob/router', function(require, exports, module) {
     if (!route) {
       return this._throwsRouteError(500, new Error('Internal error'), fragmentUrl);
     }
-    /*Combine path parameter name with params passed if any*/
     for (var i = 0, len = route.paramNames.length; i < len; i++) {
       params[route.paramNames[i]] = match[i + 1];
     }
@@ -153,18 +135,21 @@ define('mob/router', function(require, exports, module) {
     }
     /*Build next callback*/
     var hasNext = (matchedIndexes.length !== 0);
-    var next = (
-      function(uO, u, mI, hasNext) {
-        return function(hasNext, err, error_code) {
-          if (!hasNext && !err) {
-            return this._throwsRouteError(500, 'Cannot call "next" without an error if request.hasNext is false', fragmentUrl);
-          }
-          if (err)
-            return this._throwsRouteError(error_code || 500, err, fragmentUrl);
-          this._followRoute(uO, u, mI);
-        }.bind(this, hasNext);
-      }.bind(this)(fragmentUrl, url, matchedIndexes, hasNext)
-    );
+
+    var next = lang.bind(function(uO, u, mI, hasNext) {
+
+      return lang.bind(function(hasNext, err, error_code) {
+        if (!hasNext && !err) {
+          return this._throwsRouteError(500, 'Cannot call "next" without an error if request.hasNext is false', fragmentUrl);
+        }
+        if (err) {
+          return this._throwsRouteError(error_code || 500, err, fragmentUrl);
+        }
+        this._followRoute(uO, u, mI);
+      }, this, hasNext);
+
+    }, this)(fragmentUrl, url, matchedIndexes, hasNext);
+
     request = this._buildRequestObject(fragmentUrl, params, splat, hasNext);
     route.routeAction(request, next);
   };
@@ -174,17 +159,21 @@ define('mob/router', function(require, exports, module) {
     if (befores.length > 0) {
       var nextBefore = befores.splice(0, 1);
       nextBefore = nextBefore[0];
-      next = function(err, error_code) {
-        if (err)
+      next = lang.bind(function(err, error_code) {
+        if (err) {
           return this._throwsRouteError(error_code || 500, err, fragmentUrl);
+        }
         this._routeBefores(befores, nextBefore, fragmentUrl, url, matchedIndexes);
-      }.bind(this);
+      }, this);
+
     } else {
-      next = function(err, error_code) {
-        if (err)
+      next = lang.bind(function(err, error_code) {
+        if (err) {
           return this._throwsRouteError(error_code || 500, err, fragmentUrl);
+        }
         this._followRoute(fragmentUrl, url, matchedIndexes);
-      }.bind(this);
+      }, this);
+
     }
     before(this._buildRequestObject(fragmentUrl, null, null, true), next);
   };
@@ -192,16 +181,15 @@ define('mob/router', function(require, exports, module) {
   Router.prototype._route = function(fragmentUrl) {
     var route = '',
       befores = this._befores.slice(),
-    /*Take a copy of befores cause is nedeed to splice them*/
       matchedIndexes = [],
       urlToTest;
     var url = fragmentUrl;
-    if (url.length === 0)
+    if (url.length === 0) {
       return true;
+    }
     url = url.replace(ROUTER_LEADING_BACKSLASHES_MATCH, '');
-    urlToTest = (url.split('?'))[0]
-      .replace(ROUTER_LEADING_BACKSLASHES_MATCH, ''); /*Removes leading backslashes from the end of the url*/
-    /*Check for all matching indexes*/
+    urlToTest = (url.split('?'))[0].replace(ROUTER_LEADING_BACKSLASHES_MATCH, '');
+
     for (var p in this._routes) {
       if (this._routes.hasOwnProperty(p)) {
         route = this._routes[p];
@@ -212,17 +200,13 @@ define('mob/router', function(require, exports, module) {
     }
 
     if (matchedIndexes.length > 0) {
-      /*If befores were added call them in order*/
       if (befores.length > 0) {
         var before = befores.splice(0, 1);
         before = before[0];
-        /*Execute all before consecutively*/
         this._routeBefores(befores, before, fragmentUrl, url, matchedIndexes);
       } else {
-        /*Follow all routes*/
         this._followRoute(fragmentUrl, url, matchedIndexes);
       }
-      /*If no route matched, then call 404 error*/
     } else {
       return this._throwsRouteError(404, null, fragmentUrl);
     }
@@ -259,9 +243,7 @@ define('mob/router', function(require, exports, module) {
       modifiers = (this._options.ignorecase ? 'i' : ''),
       paramNames = [];
     if ('string' == typeof path) {
-      /*Remove leading backslash from the end of the string*/
       path = path.replace(ROUTER_LEADING_BACKSLASHES_MATCH, '');
-      /*Param Names are all the one defined as :param in the path*/
       while ((match = ROUTER_PATH_NAME_MATCHER.exec(path)) !== null) {
         paramNames.push(match[1]);
       }

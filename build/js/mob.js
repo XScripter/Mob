@@ -10,7 +10,7 @@
  * 
  * Licensed under MIT
  * 
- * Released on: October 16, 2015
+ * Released on: October 17, 2015
  */
 (function(factory) {
   var root = (typeof self == 'object' && self.self == self && self) ||
@@ -7526,7 +7526,7 @@
         }
       };
       this._paused = false;
-      this._hasChangeHandler = this._onHashChange.bind(this);
+      this._hasChangeHandler = lang.bind(this._onHashChange, this);
       addHashchangeListener(window, this._hasChangeHandler);
     };
   
@@ -7543,9 +7543,9 @@
     };
   
     Router.prototype._throwsRouteError = function(httpCode, err, url) {
-      if (this._errors['_' + httpCode] instanceof Function)
+      if (this._errors['_' + httpCode] instanceof Function) {
         this._errors['_' + httpCode](err, url, httpCode);
-      else {
+      } else {
         this._errors._(err, url, httpCode);
       }
       return false;
@@ -7600,18 +7600,18 @@
       }
       /*Build next callback*/
       var hasNext = (matchedIndexes.length !== 0);
-      var next = (
-        function(uO, u, mI, hasNext) {
-          return function(hasNext, err, error_code) {
-            if (!hasNext && !err) {
-              return this._throwsRouteError(500, 'Cannot call "next" without an error if request.hasNext is false', fragmentUrl);
-            }
-            if (err)
-              return this._throwsRouteError(error_code || 500, err, fragmentUrl);
-            this._followRoute(uO, u, mI);
-          }.bind(this, hasNext);
-        }.bind(this)(fragmentUrl, url, matchedIndexes, hasNext)
-      );
+  
+      var next = function(uO, u, mI, hasNext) {
+        return function(hasNext, err, error_code) {
+          if (!hasNext && !err) {
+            return this._throwsRouteError(500, 'Cannot call "next" without an error if request.hasNext is false', fragmentUrl);
+          }
+          if (err) {
+            return this._throwsRouteError(error_code || 500, err, fragmentUrl);
+          }
+          this._followRoute(uO, u, mI);
+        }.bind(this, hasNext);
+      }.bind(this)(fragmentUrl, url, matchedIndexes, hasNext);
       request = this._buildRequestObject(fragmentUrl, params, splat, hasNext);
       route.routeAction(request, next);
     };
@@ -7621,17 +7621,21 @@
       if (befores.length > 0) {
         var nextBefore = befores.splice(0, 1);
         nextBefore = nextBefore[0];
-        next = function(err, error_code) {
-          if (err)
+        next = lang.bind(function(err, error_code) {
+          if (err) {
             return this._throwsRouteError(error_code || 500, err, fragmentUrl);
+          }
           this._routeBefores(befores, nextBefore, fragmentUrl, url, matchedIndexes);
-        }.bind(this);
+        }, this);
+  
       } else {
-        next = function(err, error_code) {
-          if (err)
+        next = lang.bind(function(err, error_code) {
+          if (err) {
             return this._throwsRouteError(error_code || 500, err, fragmentUrl);
+          }
           this._followRoute(fragmentUrl, url, matchedIndexes);
-        }.bind(this);
+        }, this);
+  
       }
       before(this._buildRequestObject(fragmentUrl, null, null, true), next);
     };
@@ -7639,16 +7643,15 @@
     Router.prototype._route = function(fragmentUrl) {
       var route = '',
         befores = this._befores.slice(),
-      /*Take a copy of befores cause is nedeed to splice them*/
         matchedIndexes = [],
         urlToTest;
       var url = fragmentUrl;
-      if (url.length === 0)
+      if (url.length === 0) {
         return true;
+      }
       url = url.replace(ROUTER_LEADING_BACKSLASHES_MATCH, '');
-      urlToTest = (url.split('?'))[0]
-        .replace(ROUTER_LEADING_BACKSLASHES_MATCH, ''); /*Removes leading backslashes from the end of the url*/
-      /*Check for all matching indexes*/
+      urlToTest = (url.split('?'))[0].replace(ROUTER_LEADING_BACKSLASHES_MATCH, '');
+  
       for (var p in this._routes) {
         if (this._routes.hasOwnProperty(p)) {
           route = this._routes[p];
@@ -7659,17 +7662,13 @@
       }
   
       if (matchedIndexes.length > 0) {
-        /*If befores were added call them in order*/
         if (befores.length > 0) {
           var before = befores.splice(0, 1);
           before = before[0];
-          /*Execute all before consecutively*/
           this._routeBefores(befores, before, fragmentUrl, url, matchedIndexes);
         } else {
-          /*Follow all routes*/
           this._followRoute(fragmentUrl, url, matchedIndexes);
         }
-        /*If no route matched, then call 404 error*/
       } else {
         return this._throwsRouteError(404, null, fragmentUrl);
       }
@@ -7706,9 +7705,7 @@
         modifiers = (this._options.ignorecase ? 'i' : ''),
         paramNames = [];
       if ('string' == typeof path) {
-        /*Remove leading backslash from the end of the string*/
         path = path.replace(ROUTER_LEADING_BACKSLASHES_MATCH, '');
-        /*Param Names are all the one defined as :param in the path*/
         while ((match = ROUTER_PATH_NAME_MATCHER.exec(path)) !== null) {
           paramNames.push(match[1]);
         }
