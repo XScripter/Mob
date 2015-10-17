@@ -700,7 +700,7 @@ define('mob/lang', function(require, exports, module) {
 
   lang.delay = function(func, wait) {
     var args = slice.call(arguments, 2);
-    return setTimeout(function(){
+    return setTimeout(function() {
       return func.apply(null, args);
     }, wait);
   };
@@ -902,6 +902,51 @@ define('mob/lang', function(require, exports, module) {
     lang.requestAnimationFrame(function() {
       document.title = title;
     });
+  };
+
+  var encodeUrlParamsFn = lang.encodeUrlParams = function(params) {
+    var buf = [];
+    var encodeString = function(str) {
+      return encodeURIComponent(str).replace(/[!'()]/g, escape).replace(/\*/g, '%2A');
+    };
+
+    eachFn(params, function(value, key) {
+      if (buf.length) {
+        buf.push('&');
+      }
+      buf.push(encodeString(key), '=', encodeString(value));
+    });
+    return buf.join('').replace(/%20/g, '+');
+  };
+
+  function buildUrl(beforeQmark, fromQmark, optQuery, optParams) {
+    var urlWithoutQuery = beforeQmark;
+    var query = fromQmark ? fromQmark.slice(1) : null;
+
+    if (lang.isString(optQuery)) {
+      query = String(optQuery);
+    }
+
+    if (optParams) {
+      query = query || '';
+      var prms = encodeUrlParamsFn(optParams);
+      if (query && prms) {
+        query += '&';
+      }
+      query += prms;
+    }
+
+    var url = urlWithoutQuery;
+    if (query !== null) {
+      url += ('?' + query);
+    }
+
+    return url;
+  }
+
+  lang.constructUrl = function(url, query, params) {
+    var queryMatch = /^(.*?)(\?.*)?$/.exec(url);
+    return buildUrl(queryMatch[1], queryMatch[2], query, params);
   };
 
   module.exports = lang;
