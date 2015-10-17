@@ -29,7 +29,7 @@ define('mob/template', function(require, exports, module) {
   };
 
   Template.config = function(options) {
-    lang.extend(Template._settings, options || {});
+    return lang.extend(Template._settings, options || {});
   };
 
   Template.registerHelpers = function(newHelpers) {

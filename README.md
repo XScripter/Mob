@@ -264,13 +264,13 @@ compiled({epithet: 'stooge'});
 => "Hello stooge"
 ```
 
-#### settings
+#### config
 更改模板设置。
 
 ```js
-Mob.Template.settings = {
+Mob.Template.config({
   interpolate: /\{\{(.+?)\}\}/g
-};
+});
 
 var compiled = Mob.Template.compile('Hello {{ name }}!');
 compiled({name: 'Mustache'}); // "Hello Mustache!"
