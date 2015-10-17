@@ -25,6 +25,7 @@
 }(function(root, $) {
 
   var previousMob = root.Mob;
+  var undefined;
   
   var Mob = {};
   
@@ -1175,6 +1176,49 @@
     };
   
     module.exports = Logger;
+  
+  });
+
+  define('mob/error', function(require, exports, module) {
+  
+    var lang = require('mob/lang');
+  
+    var errorProps = ['description', 'fileName', 'lineNumber', 'name', 'message', 'number'];
+  
+    var MoError = lang.inherits.call(Error, {
+  
+      urlRoot: 'http://xscripter.com/mobjs/docs/v' + Mob.VERSION + '/',
+  
+      constructor: function(message, options) {
+        if (lang.isObject(message)) {
+          options = message;
+          message = options.message;
+        } else if (!options) {
+          options = {};
+        }
+  
+        var error = Error.call(this, message);
+        lang.extend(this, lang.pick(error, errorProps), lang.pick(options, errorProps));
+  
+        this.captureStackTrace();
+  
+        if (options.url) {
+          this.url = this.urlRoot + options.url;
+        }
+      },
+  
+      captureStackTrace: function() {
+        if (Error.captureStackTrace) {
+          Error.captureStackTrace(this, MoError);
+        }
+      },
+  
+      toString: function() {
+        return this.name + ': ' + this.message + (this.url ? ' 查阅： ' + this.url : '');
+      }
+    });
+  
+    module.exports = MoError;
   
   });
 
@@ -2565,6 +2609,7 @@
   
     var lang = require('mob/lang');
     var $ = require('mob/jqlite');
+    var Error = require('mob/error');
   
     function baseBindFromStrings(target, entity, evt, methods) {
       var methodNames = methods.split(/\s+/);
@@ -6893,6 +6938,7 @@
     var base = require('mob/base');
     var Class = require('mob/class');
     var Transition = require('mob/transition');
+    var Error = require('mob/error');
   
     var Screen = Class.extend({
   
@@ -7173,6 +7219,7 @@
   
     var lang = require('mob/lang');
     var $ = require('mob/jqlite');
+    var Error = require('mob/error');
   
     var ScreenComponent = {};
   
@@ -7450,13 +7497,18 @@
     var lang = require('mob/lang');
     var Logger = require('mob/logger');
     var $ = require('mob/jqlite');
+    var Error = require('mob/error');
   
-    var ROUTER_PATH_REPLACER = "([^\/\\?]+)",
+    var isUndefined = lang.isUndefined;
+  
+    var hashchangeEvtName = 'hashchange.router';
+  
+    var ROUTER_PATH_REPLACER = '([^\/\\?]+)',
       ROUTER_PATH_NAME_MATCHER = /:([\w\d]+)/g,
       ROUTER_PATH_EVERY_MATCHER = /\/\*(?!\*)/,
-      ROUTER_PATH_EVERY_REPLACER = "\/([^\/\\?]+)",
+      ROUTER_PATH_EVERY_REPLACER = '\/([^\/\\?]+)',
       ROUTER_PATH_EVERY_GLOBAL_MATCHER = /\*{2}/,
-      ROUTER_PATH_EVERY_GLOBAL_REPLACER = "(.*?)\\??",
+      ROUTER_PATH_EVERY_GLOBAL_REPLACER = '(.*?)\\??',
       ROUTER_LEADING_BACKSLASHES_MATCH = /\/*$/;
   
     var RouterRequest = function(href) {
@@ -7467,34 +7519,34 @@
       this.hasNext = false;
     };
   
-    RouterRequest.prototype.get = function(key, default_value) {
-      return (this.params && this.params[key] !== undefined) ?
-        this.params[key] : (this.query && this.query[key] !== undefined) ?
-        this.query[key] : (default_value !== undefined) ?
-        default_value : undefined;
+    RouterRequest.prototype.get = function(key, defaultValue) {
+      return (this.params && !isUndefined(this.params[key])) ?
+        this.params[key] : (this.query && !isUndefined(this.query[key])) ?
+        this.query[key] : !isUndefined(defaultValue) ? defaultValue : undefined;
     };
   
     var Router = function(options) {
+  
       this._options = lang.extend({
         ignorecase: true
       }, options);
+  
       this._routes = [];
       this._befores = [];
       this._errors = {
-        '_': function(err, url, httpCode) {
-          Logger.warn('Router : ' + httpCode);
-        },
+        '_': function( /* err, url, httpCode */ ) {},
         '_404': function(err, url) {
-           Logger.warn('404! Unmatched route for url ' + url);
+          Logger.warn('404! 没有找到匹配链接 ' + url + ' 的路由');
         },
         '_500': function(err, url) {
-          Logger.error('500! Internal error route for url ' + url);
+          Logger.error('500! 执行链接 ' + url + ' 匹配路由时出现内部异常');
         }
       };
       this._paused = false;
-      this._hasChangeHandler = lang.bind(this._onHashChange, this);
   
-      $(window).unbind('hashchange.router').bind('hashchange.router',this._hasChangeHandler);
+      var hasChangeHandler = lang.bind(this._onHashChange, this);
+  
+      $(window).unbind(hashchangeEvtName).bind(hashchangeEvtName, hasChangeHandler);
     };
   
     Router.prototype._onHashChange = function(e) {
@@ -7505,12 +7557,12 @@
     };
   
     Router.prototype._extractFragment = function(url) {
-      var hash_index = url.indexOf('#');
-      return hash_index >= 0 ? url.substring(hash_index) : '#/';
+      var hashIndex = url.indexOf('#');
+      return hashIndex >= 0 ? url.substring(hashIndex) : '#/';
     };
   
     Router.prototype._throwsRouteError = function(httpCode, err, url) {
-      if (this._errors['_' + httpCode] instanceof Function) {
+      if (lang.isFunction(this._errors['_' + httpCode])) {
         this._errors['_' + httpCode](err, url, httpCode);
       } else {
         this._errors._(err, url, httpCode);
@@ -7520,7 +7572,7 @@
   
     Router.prototype._buildRequestObject = function(fragmentUrl, params, splat, hasNext) {
       if (!fragmentUrl) {
-        throw new Error('Unable to compile request object');
+        throw new Error('参数 fragmentUrl 为空，无法编译请求对象');
       }
       var request = new RouterRequest(fragmentUrl);
       if (params) {
@@ -7554,19 +7606,19 @@
         params = {},
         splat = [];
       if (!route) {
-        return this._throwsRouteError(500, new Error('Internal error'), fragmentUrl);
+        return this._throwsRouteError(500, new Error('路由为空，出现内部异常'), fragmentUrl);
       }
       for (var i = 0, len = route.paramNames.length; i < len; i++) {
         params[route.paramNames[i]] = match[i + 1];
       }
       i = i + 1;
-      /*If any other match put them in request splat*/
+  
       if (match && i < match.length) {
         for (var j = i; j < match.length; j++) {
           splat.push(match[j]);
         }
       }
-      /*Build next callback*/
+  
       var hasNext = (matchedIndexes.length !== 0);
   
       var next = lang.bind(function(uO, u, mI, hasNext) {
@@ -7651,7 +7703,7 @@
     };
   
     Router.prototype.play = function(triggerNow) {
-      triggerNow = 'undefined' == typeof triggerNow ? false : triggerNow;
+      triggerNow = isUndefined(triggerNow) ? false : triggerNow;
       this._paused = false;
       if (triggerNow) {
         this._route(this._extractFragment(window.location.href));
@@ -7666,8 +7718,9 @@
   
     Router.prototype.redirect = function(url) {
       this.setLocation(url);
-      if (!this._paused)
+      if (!this._paused) {
         this._route(this._extractFragment(url));
+      }
       return this;
     };
   
@@ -7675,7 +7728,7 @@
       var match,
         modifiers = (this._options.ignorecase ? 'i' : ''),
         paramNames = [];
-      if ('string' == typeof path) {
+      if (lang.isString(path)) {
         path = path.replace(ROUTER_LEADING_BACKSLASHES_MATCH, '');
         while ((match = ROUTER_PATH_NAME_MATCHER.exec(path)) !== null) {
           paramNames.push(match[1]);
@@ -7683,8 +7736,9 @@
         path = new RegExp(path
             .replace(ROUTER_PATH_NAME_MATCHER, ROUTER_PATH_REPLACER)
             .replace(ROUTER_PATH_EVERY_MATCHER, ROUTER_PATH_EVERY_REPLACER)
-            .replace(ROUTER_PATH_EVERY_GLOBAL_MATCHER, ROUTER_PATH_EVERY_GLOBAL_REPLACER) + "(?:\\?.+)?$", modifiers);
+            .replace(ROUTER_PATH_EVERY_GLOBAL_MATCHER, ROUTER_PATH_EVERY_GLOBAL_REPLACER) + '(?:\\?.+)?$', modifiers);
       }
+  
       this._routes.push({
         'path': path,
         'paramNames': paramNames,
@@ -7699,11 +7753,11 @@
     };
   
     Router.prototype.errors = function(httpCode, callback) {
-      if (isNaN(httpCode)) {
-        throw new Error('Invalid code for routes error handling');
+      if (lang.isNaN(httpCode)) {
+        throw new Error('参数 httpCode 不符合规范，必须为数字');
       }
-      if (!(callback instanceof Function)) {
-        throw new Error('Invalid callback for routes error handling');
+      if (!lang.isFunction(callback)) {
+        throw new Error('参数 callback 不符合规范，必须为函数');
       }
       httpCode = '_' + httpCode;
       this._errors[httpCode] = callback;
@@ -7720,7 +7774,7 @@
     };
   
     Router.prototype.destroy = function() {
-      $(window).unbind('hashchange.router');
+      $(window).unbind(hashchangeEvtName);
       return this;
     };
   
@@ -7843,6 +7897,8 @@
   Mob.each(['debug', 'time', 'timeEnd', 'info', 'warn', 'error', 'log'], function(method) {
     Mob[method] = Mob.Logger[method];
   });
+  
+  Mob.Error = require('mob/error');
   
   if (Mob.isUndefined(Mob.$)) {
     Mob.$ = require('mob/jqlite');

@@ -7,6 +7,8 @@ define('mob/router', function(require, exports, module) {
 
   var isUndefined = lang.isUndefined;
 
+  var hashchangeEvtName = 'hashchange.router';
+
   var ROUTER_PATH_REPLACER = '([^\/\\?]+)',
     ROUTER_PATH_NAME_MATCHER = /:([\w\d]+)/g,
     ROUTER_PATH_EVERY_MATCHER = /\/\*(?!\*)/,
@@ -50,7 +52,7 @@ define('mob/router', function(require, exports, module) {
 
     var hasChangeHandler = lang.bind(this._onHashChange, this);
 
-    $(window).unbind('hashchange.router').bind('hashchange.router', hasChangeHandler);
+    $(window).unbind(hashchangeEvtName).bind(hashchangeEvtName, hasChangeHandler);
   };
 
   Router.prototype._onHashChange = function(e) {
@@ -76,7 +78,7 @@ define('mob/router', function(require, exports, module) {
 
   Router.prototype._buildRequestObject = function(fragmentUrl, params, splat, hasNext) {
     if (!fragmentUrl) {
-      throw new Error('Unable to compile request object');
+      throw new Error('参数 fragmentUrl 为空，无法编译请求对象');
     }
     var request = new RouterRequest(fragmentUrl);
     if (params) {
@@ -110,19 +112,19 @@ define('mob/router', function(require, exports, module) {
       params = {},
       splat = [];
     if (!route) {
-      return this._throwsRouteError(500, new Error('Internal error'), fragmentUrl);
+      return this._throwsRouteError(500, new Error('路由为空，出现内部异常'), fragmentUrl);
     }
     for (var i = 0, len = route.paramNames.length; i < len; i++) {
       params[route.paramNames[i]] = match[i + 1];
     }
     i = i + 1;
-    /*If any other match put them in request splat*/
+
     if (match && i < match.length) {
       for (var j = i; j < match.length; j++) {
         splat.push(match[j]);
       }
     }
-    /*Build next callback*/
+
     var hasNext = (matchedIndexes.length !== 0);
 
     var next = lang.bind(function(uO, u, mI, hasNext) {
@@ -222,8 +224,9 @@ define('mob/router', function(require, exports, module) {
 
   Router.prototype.redirect = function(url) {
     this.setLocation(url);
-    if (!this._paused)
+    if (!this._paused) {
       this._route(this._extractFragment(url));
+    }
     return this;
   };
 
@@ -231,7 +234,7 @@ define('mob/router', function(require, exports, module) {
     var match,
       modifiers = (this._options.ignorecase ? 'i' : ''),
       paramNames = [];
-    if ('string' == typeof path) {
+    if (lang.isString(path)) {
       path = path.replace(ROUTER_LEADING_BACKSLASHES_MATCH, '');
       while ((match = ROUTER_PATH_NAME_MATCHER.exec(path)) !== null) {
         paramNames.push(match[1]);
@@ -241,6 +244,7 @@ define('mob/router', function(require, exports, module) {
           .replace(ROUTER_PATH_EVERY_MATCHER, ROUTER_PATH_EVERY_REPLACER)
           .replace(ROUTER_PATH_EVERY_GLOBAL_MATCHER, ROUTER_PATH_EVERY_GLOBAL_REPLACER) + '(?:\\?.+)?$', modifiers);
     }
+
     this._routes.push({
       'path': path,
       'paramNames': paramNames,
@@ -255,11 +259,11 @@ define('mob/router', function(require, exports, module) {
   };
 
   Router.prototype.errors = function(httpCode, callback) {
-    if (isNaN(httpCode)) {
-      throw new Error('Invalid code for routes error handling');
+    if (lang.isNaN(httpCode)) {
+      throw new Error('参数 httpCode 不符合规范，必须为数字');
     }
-    if (!(callback instanceof Function)) {
-      throw new Error('Invalid callback for routes error handling');
+    if (!lang.isFunction(callback)) {
+      throw new Error('参数 callback 不符合规范，必须为函数');
     }
     httpCode = '_' + httpCode;
     this._errors[httpCode] = callback;
@@ -276,7 +280,7 @@ define('mob/router', function(require, exports, module) {
   };
 
   Router.prototype.destroy = function() {
-    $(window).unbind('hashchange.router');
+    $(window).unbind(hashchangeEvtName);
     return this;
   };
 
