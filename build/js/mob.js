@@ -1,8 +1,8 @@
 /**
- * Mobird 0.2.0
+ * MobJS 0.2.0
  * Full Featured HTML5 Framework For Building Mobile Apps
  * 
- * http://www.xscripter.com/mobird/
+ * https://github.com/XScripter/Mob
  * 
  * Copyright 2015, Clarence Hu
  * The XScripter.com
@@ -809,7 +809,7 @@
   
     lang.delay = function(func, wait) {
       var args = slice.call(arguments, 2);
-      return setTimeout(function(){
+      return setTimeout(function() {
         return func.apply(null, args);
       }, wait);
     };
@@ -1011,6 +1011,51 @@
       lang.requestAnimationFrame(function() {
         document.title = title;
       });
+    };
+  
+    var encodeUrlParamsFn = lang.encodeUrlParams = function(params) {
+      var buf = [];
+      var encodeString = function(str) {
+        return encodeURIComponent(str).replace(/[!'()]/g, escape).replace(/\*/g, '%2A');
+      };
+  
+      eachFn(params, function(value, key) {
+        if (buf.length) {
+          buf.push('&');
+        }
+        buf.push(encodeString(key), '=', encodeString(value));
+      });
+      return buf.join('').replace(/%20/g, '+');
+    };
+  
+    function buildUrl(beforeQmark, fromQmark, optQuery, optParams) {
+      var urlWithoutQuery = beforeQmark;
+      var query = fromQmark ? fromQmark.slice(1) : null;
+  
+      if (lang.isString(optQuery)) {
+        query = String(optQuery);
+      }
+  
+      if (optParams) {
+        query = query || '';
+        var prms = encodeUrlParamsFn(optParams);
+        if (query && prms) {
+          query += '&';
+        }
+        query += prms;
+      }
+  
+      var url = urlWithoutQuery;
+      if (query !== null) {
+        url += ('?' + query);
+      }
+  
+      return url;
+    }
+  
+    lang.constructUrl = function(url, query, params) {
+      var queryMatch = /^(.*?)(\?.*)?$/.exec(url);
+      return buildUrl(queryMatch[1], queryMatch[2], query, params);
     };
   
     module.exports = lang;
@@ -3060,344 +3105,207 @@
   define('mob/http', function(require, exports, module) {
   
     var lang = require('mob/lang');
-    var $ = require('mob/jqlite');
+    var Error = require('mob/error');
+  
+    var isFunction = lang.isFunction;
+  
+    var makeErrorByStatus = function(statusCode, content) {
+      var MAX_LENGTH = 500;
+  
+      var truncate = function(str, length) {
+        return str.length > length ? str.slice(0, length) + '...' : str;
+      };
+  
+      var contentToCheck = lang.isString(content) ? content : content.toString();
+  
+      var message = '请求异常 [' + statusCode + ']';
+  
+      if (contentToCheck) {
+        message += ' ' + truncate(contentToCheck.replace(/\n/g, ' '), MAX_LENGTH);
+      }
+  
+      return new Error(message);
+    };
+  
+    var populateData = function(response) {
+      // Read Content-Type header, up to a ';' if there is one.
+      // A typical header might be "application/json; charset=utf-8"
+      // or just "application/json".
+      var contentType = (response.headers['content-type'] || ';').split(';')[0];
+  
+      // Only try to parse data as JSON if server sets correct content type.
+      if (lang.contains(['application/json', 'text/javascript', 'application/javascript', 'application/x-javascript'], contentType)) {
+        try {
+          response.data = JSON.parse(response.content);
+        } catch (err) {
+          response.data = null;
+        }
+      } else {
+        response.data = null;
+      }
+    };
   
     var HTTP = {};
   
-    var document = window.document,
-      key,
-      name,
-      scriptTypeRE = /^(?:text|application)\/javascript/i,
-      xmlTypeRE = /^(?:text|application)\/xml/i,
-      jsonType = 'application/json',
-      htmlType = 'text/html',
-      blankRE = /^\s*$/,
-      originAnchor = document.createElement('a');
+    HTTP.call = function(method, url, options, callback) {
   
-    originAnchor.href = window.location.href;
-  
-    // trigger a custom event and return false if it was cancelled
-    function triggerAndReturn(context, eventName, data) {
-      var event = $.Event(eventName);
-      $(context).trigger(event, data);
-      return !event.isDefaultPrevented();
-    }
-  
-    // trigger an Ajax 'global' event
-    function triggerGlobal(settings, context, eventName, data) {
-      if (settings.global) {
-        return triggerAndReturn(context || document, eventName, data);
-      }
-    }
-  
-    // Number of active Ajax requests
-    HTTP.active = 0;
-  
-    function ajaxStart(settings) {
-      if (settings.global && HTTP.active++ === 0) {
-        triggerGlobal(settings, null, 'ajaxStart');
-      }
-    }
-  
-    function ajaxStop(settings) {
-      if (settings.global && !(--HTTP.active)) {
-        triggerGlobal(settings, null, 'ajaxStop');
-      }
-    }
-  
-    // triggers an extra global event 'ajaxBeforeSend' that's like 'ajaxSend' but cancelable
-    function ajaxBeforeSend(xhr, settings) {
-      var context = settings.context;
-  
-      if (settings.beforeSend.call(context, xhr, settings) === false ||
-        triggerGlobal(settings, context, 'ajaxBeforeSend', [xhr, settings]) === false) {
-        return false;
+      // 传递的参数中可以不包含`options`
+      if (!callback && isFunction(options)) {
+        callback = options;
+        options = null;
       }
   
-      triggerGlobal(settings, context, 'ajaxSend', [xhr, settings]);
-    }
+      options = options || {};
   
-    function ajaxSuccess(data, xhr, settings) {
-      var context = settings.context,
-        status = 'success';
-      settings.success.call(context, data, status, xhr);
-      triggerGlobal(settings, context, 'ajaxSuccess', [xhr, settings, data]);
-      ajaxComplete(status, xhr, settings);
-    }
-  
-    // type: 'timeout', 'error', 'abort', 'parsererror'
-    function ajaxError(error, type, xhr, settings) {
-      var context = settings.context;
-      settings.error.call(context, xhr, type, error);
-      triggerGlobal(settings, context, 'ajaxError', [xhr, settings, error || type]);
-      ajaxComplete(type, xhr, settings);
-    }
-  
-    // status: 'success', 'notmodified', 'error', 'timeout', 'abort', 'parsererror'
-    function ajaxComplete(status, xhr, settings) {
-      var context = settings.context;
-      settings.complete.call(context, xhr, status);
-      triggerGlobal(settings, context, 'ajaxComplete', [xhr, settings]);
-      ajaxStop(settings);
-    }
-  
-    function mimeToDataType(mime) {
-      if (mime) {
-        mime = mime.split(';', 2)[0];
+      if (isFunction(callback)) {
+        throw new Error('参数 `callback` 不为函数');
       }
-      return mime && (mime == htmlType ? 'html' :
-          mime == jsonType ? 'json' :
-            scriptTypeRE.test(mime) ? 'script' :
-            xmlTypeRE.test(mime) && 'xml') || 'text';
-    }
   
-    function appendQuery(url, query) {
-      if (query == '') {
-        return url;
+      method = (method || '').toUpperCase();
+  
+      var headers = {};
+  
+      var content = options.content;
+      if (options.data) {
+        content = JSON.stringify(options.data);
+        headers['Content-Type'] = 'application/json';
       }
-      return (url + '&' + query).replace(/[&?]{1,2}/, '?');
-    }
   
-    // serialize payload and append it to the URL for GET requests
-    function serializeData(options) {
-      if (options.processData && options.data && !lang.isString(options.data)) {
-        options.data = param(options.data, options.traditional);
+      var paramsForUrl, paramsForBody;
+      if (content || method === 'GET' || method === 'HEAD') {
+        paramsForUrl = options.params;
+      } else {
+        paramsForBody = options.params;
       }
-      if (options.data && (!options.type || options.type.toUpperCase() == 'GET')) {
-        options.url = appendQuery(options.url, options.data);
-        options.data = undefined;
-      }
-    }
   
-    var escape = encodeURIComponent;
+      url = lang.constructUrl(url, options.query, paramsForUrl);
   
-    function serialize(params, obj, traditional, scope) {
-      var array = lang.isArray(obj),
-        hash = lang.isPlainObject(obj);
-  
-      lang.each(obj, function(value, key) {
-  
-        if (scope) {
-          key = traditional ? scope : scope + '[' + (hash || lang.isObject(value) || lang.isArray(value) ? key : '') + ']';
+      var username, password, auth = options.auth;
+      if (auth) {
+        var colonLoc = auth.indexOf(':');
+        if (colonLoc < 0) {
+          throw new Error('`option.auth` 值需要遵从 "username:password" 表单格式');
         }
-        // handle data in serializeArray() format
-        if (!scope && array) {
-          params.add(value.name, value.value);
-        } else if (lang.isArray(value) || (!traditional && lang.isObject(value))) {
-          serialize(params, value, traditional, key);
-        } else {
-          params.add(key, value);
+        username = auth.substring(0, colonLoc);
+        password = auth.substring(colonLoc + 1);
+      }
+  
+      if (paramsForBody) {
+        content = lang.encodeUrlParams(paramsForBody);
+      }
+  
+      lang.extend(headers, options.headers || {});
+  
+      // wrap callback to add a 'response' property on an error, in case
+      // we have both (http 4xx/5xx error, which has a response payload)
+      callback = (function(callback) {
+        return function(error, response) {
+          if (error && response) {
+            error.response = response;
+          }
+          callback(error, response);
+        };
+      })(callback);
+  
+      callback = lang.once(callback);
+  
+      try {
+        // 初始化 xhr
+        var xhr = new XMLHttpRequest();
+  
+        xhr.open(method, url, true, username, password);
+  
+        for (var k in headers) {
+          xhr.setRequestHeader(k, headers[k]);
         }
-      });
-    }
   
-    var param = function(obj, traditional) {
-      var params = [];
-      params.add = function(key, value) {
-        if (lang.isFunction(value)) {
-          value = value();
+        // 初始化 timeout
+        var timedOut = false;
+        var timer;
+        if (options.timeout) {
+          timer = setTimeout(function() {
+            timedOut = true;
+            xhr.abort();
+          }, options.timeout);
         }
-        if (value == null) {
-          value = '';
-        }
-        this.push(escape(key) + '=' + escape(value));
-      };
-      serialize(params, obj, traditional);
-      return params.join('&').replace(/%20/g, '+');
-    };
   
-    HTTP.ajaxSettings = {
-      // Default type of request
-      type: 'GET',
-      // Callback that is executed before request
-      beforeSend: lang.noop,
-      // Callback that is executed if the request succeeds
-      success: lang.noop,
-      // Callback that is executed the the server drops error
-      error: lang.noop,
-      // Callback that is executed on request complete (both: error and success)
-      complete: lang.noop,
-      // The context for the callbacks
-      context: null,
-      // Whether to trigger 'global' Ajax events
-      global: true,
-      // Transport
-      xhr: function() {
-        return new window.XMLHttpRequest()
-      },
-      // MIME types mapping
-      // IIS returns Javascript as 'application/x-javascript'
-      accepts: {
-        script: 'text/javascript, application/javascript, application/x-javascript',
-        json: jsonType,
-        xml: 'application/xml, text/xml',
-        html: htmlType,
-        text: 'text/plain'
-      },
-      // Whether the request is to another domain
-      crossDomain: false,
-      // Default timeout
-      timeout: 0,
-      // Whether data should be serialized to string
-      processData: true,
-      // Whether the browser should be allowed to cache GET responses
-      cache: true
-    };
+        // callback on complete
+        xhr.onreadystatechange = function(evt) {
+          if (xhr.readyState === 4) { // COMPLETE
   
-    HTTP.ajax = function(options) {
-      var settings = lang.extend({}, options || {}),
-        urlAnchor;
-      for (key in HTTP.ajaxSettings) {
-        if (settings[key] === undefined) {
-          settings[key] = HTTP.ajaxSettings[key];
-        }
-      }
-  
-      ajaxStart(settings);
-  
-      if (!settings.crossDomain) {
-        urlAnchor = document.createElement('a');
-        urlAnchor.href = settings.url;
-        urlAnchor.href = urlAnchor.href;
-        settings.crossDomain = (originAnchor.protocol + '//' + originAnchor.host) !== (urlAnchor.protocol + '//' + urlAnchor.host);
-      }
-  
-      if (!settings.url) {
-        settings.url = window.location.toString();
-      }
-  
-      serializeData(settings);
-  
-      var dataType = settings.dataType;
-  
-      if (settings.cache === false || (
-          (!options || options.cache !== true) &&
-          ('script' == dataType || 'jsonp' == dataType)
-        )) {
-        settings.url = appendQuery(settings.url, '_=' + Date.now());
-      }
-  
-      var mime = settings.accepts[dataType],
-        headers = {},
-        setHeader = function(name, value) {
-          headers[name.toLowerCase()] = [name, value];
-        },
-        protocol = /^([\w-]+:)\/\//.test(settings.url) ? RegExp.$1 : window.location.protocol,
-        xhr = settings.xhr(),
-        nativeSetHeader = xhr.setRequestHeader,
-        abortTimeout;
-  
-      if (!settings.crossDomain) {
-        setHeader('X-Requested-With', 'XMLHttpRequest');
-      }
-      setHeader('Accept', mime || '*/*');
-      if (mime = settings.mimeType || mime) {
-        if (mime.indexOf(',') > -1) {
-          mime = mime.split(',', 2)[0];
-        }
-        xhr.overrideMimeType && xhr.overrideMimeType(mime);
-      }
-      if (settings.contentType || (settings.contentType !== false && settings.data && settings.type.toUpperCase() != 'GET')) {
-        setHeader('Content-Type', settings.contentType || 'application/x-www-form-urlencoded');
-      }
-  
-      if (settings.headers) {
-        for (name in settings.headers) {
-          setHeader(name, settings.headers[name]);
-        }
-      }
-      xhr.setRequestHeader = setHeader;
-  
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4) {
-          xhr.onreadystatechange = lang.noop;
-          clearTimeout(abortTimeout);
-          var result, error = false;
-          if ((xhr.status >= 200 && xhr.status < 300) || xhr.status == 304 || (xhr.status == 0 && protocol == 'file:')) {
-            dataType = dataType || mimeToDataType(settings.mimeType || xhr.getResponseHeader('content-type'));
-            result = xhr.responseText;
-  
-            try {
-              // http://perfectionkills.com/global-eval-what-are-the-options/
-              if (dataType == 'script') {
-                (1, eval)(result);
-              } else if (dataType == 'xml') {
-                result = xhr.responseXML;
-              } else if (dataType == 'json') {
-                result = blankRE.test(result) ? null : JSON.parse(result);
-              }
-            } catch (e) {
-              error = e;
+            if (timer) {
+              clearTimeout(timer);
             }
   
-            if (error) {
-              ajaxError(error, 'parsererror', xhr, settings);
+            if (timedOut) {
+              callback(new Error('timeout'));
+            } else if (!xhr.status) {
+              // no HTTP response
+              callback(new Error('network'));
             } else {
-              ajaxSuccess(result, xhr, settings);
+  
+              var response = {};
+              response.statusCode = xhr.status;
+              response.content = xhr.responseText;
+  
+              response.headers = {};
+              var headerStr = xhr.getAllResponseHeaders();
+  
+              if ('' === headerStr && xhr.getResponseHeader('content-type')) {
+                headerStr = 'content-type: ' + xhr.getResponseHeader('content-type');
+              }
+  
+              var headersRaw = headerStr.split(/\r?\n/);
+              lang.each(headersRaw, function(h) {
+                var m = /^(.*?):(?:\s+)(.*)$/.exec(h);
+                if (m && m.length === 3)
+                  response.headers[m[1].toLowerCase()] = m[2];
+              });
+  
+              populateData(response);
+  
+              var error = null;
+              if (response.statusCode >= 400) {
+                error = makeErrorByStatus(response.statusCode, response.content);
+              }
+  
+              callback(error, response);
             }
-          } else {
-            ajaxError(xhr.statusText || null, xhr.status ? 'error' : 'abort', xhr, settings);
+          }
+        };
+  
+        // Allow custom control over XHR and abort early.
+        if (options.beforeSend) {
+          var beforeSend = lang.once(options.beforeSend);
+  
+          // Call the callback and check to see if the request was aborted
+          if (false === beforeSend.call(null, xhr, options)) {
+            return xhr.abort();
           }
         }
-      };
   
-      if (ajaxBeforeSend(xhr, settings) === false) {
-        xhr.abort();
-        ajaxError(null, 'abort', xhr, settings);
-        return xhr;
+        xhr.send(content);
+  
+      } catch (err) {
+        callback(err);
       }
   
-      if (settings.xhrFields) {
-        for (name in settings.xhrFields) {
-          xhr[name] = settings.xhrFields[name];
-        }
-      }
-  
-      var async = 'async' in settings ? settings.async : true;
-      xhr.open(settings.type, settings.url, async, settings.username, settings.password);
-  
-      for (name in headers) {
-        nativeSetHeader.apply(xhr, headers[name]);
-      }
-  
-      if (settings.timeout > 0) {
-        abortTimeout = setTimeout(function() {
-          xhr.onreadystatechange = lang.noop;
-          xhr.abort();
-          ajaxError(null, 'timeout', xhr, settings);
-        }, settings.timeout);
-      }
-  
-      xhr.send(settings.data ? settings.data : null);
-      return xhr;
     };
   
-    function parseArguments(url, data, success, dataType) {
-      if (lang.isFunction(data)) {
-        dataType = success;
-        success = data;
-        data = undefined;
-      }
-      if (!lang.isFunction(success)) {
-        dataType = success;
-        success = undefined;
-      }
-      return {
-        url: url,
-        data: data,
-        success: success,
-        dataType: dataType
-      };
-    }
-  
-    HTTP.get = function( /* url, data, success, dataType */ ) {
-      return HTTP.ajax(parseArguments.apply(null, arguments));
+    HTTP.get = function( /* url, callOptions, asyncCallback */ ) {
+      return HTTP.call.apply(this, ['GET'].concat(lang.toArray(arguments)));
     };
   
-    HTTP.post = function( /* url, data, success, dataType */ ) {
-      var options = parseArguments.apply(null, arguments);
-      options.type = 'POST';
-      return HTTP.ajax(options);
+    HTTP.post = function( /* url, callOptions, asyncCallback */ ) {
+      return HTTP.call.apply(this, ['POST'].concat(lang.toArray(arguments)));
+    };
+  
+    HTTP.put = function( /* url, callOptions, asyncCallback */ ) {
+      return HTTP.call.apply(this, ['PUT'].concat(lang.toArray(arguments)));
+    };
+  
+    HTTP.del = function( /* url, callOptions, asyncCallback */ ) {
+      return HTTP.call.apply(this, ['DELETE'].concat(lang.toArray(arguments)));
     };
   
     module.exports = HTTP;
@@ -6808,7 +6716,7 @@
   
     var Template = {};
     var templateHelpers = {
-      insertComponent : function(componentName) {
+      insertComponent: function(componentName) {
         return '<div mo-component="' + componentName + '"></div>';
       }
     };
@@ -6826,13 +6734,17 @@
   
     var escaper = /\\|'|\r|\n|\u2028|\u2029/g;
   
-    Template.settings = {
+    Template._settings = {
       evaluate: /<%([\s\S]+?)%>/g,
       interpolate: /<%=([\s\S]+?)%>/g,
       escape: /<%-([\s\S]+?)%>/g
     };
   
-    Template.addHelpers = function(newHelpers) {
+    Template.config = function(options) {
+      lang.extend(Template._settings, options || {});
+    };
+  
+    Template.registerHelpers = function(newHelpers) {
       lang.extend(templateHelpers, newHelpers);
     };
   
@@ -6841,8 +6753,11 @@
     };
   
     function template(text, settings, oldSettings) {
-      if (!settings && oldSettings) settings = oldSettings;
-      settings = lang.defaults({}, settings, Template.settings);
+      if (!settings && oldSettings) {
+        settings = oldSettings;
+      }
+  
+      settings = lang.defaults({}, settings, Template._settings);
   
       // Combine delimiters into one regular expression via alternation.
       var matcher = RegExp([
@@ -6867,10 +6782,13 @@
         // Adobe VMs need the match returned to produce the correct offest.
         return match;
       });
+  
       source += "';\n";
   
       // If a variable is not specified, place data values in local scope.
-      if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
+      if (!settings.variable) {
+        source = 'with(obj||{}){\n' + source + '}\n';
+      }
   
       source = "var __t,__p='',__j=Array.prototype.join," +
         "print=function(){__p+=__j.call(arguments,'');};\n" +

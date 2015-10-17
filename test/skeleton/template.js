@@ -5,11 +5,11 @@
   QUnit.module('mob/template', {
 
     setup: function() {
-      templateSettings = Mob.clone(Mob.Template.settings);
+      templateSettings = Mob.clone(Mob.Template._settings);
     },
 
     teardown: function() {
-      Mob.Template.settings = templateSettings;
+      Mob.Template._settings = templateSettings;
     }
 
   });
@@ -104,10 +104,10 @@
       data: 12345
     }).replace(/\s/g, ''), '<li>24690</li>');
 
-    Mob.Template.settings = {
+    Mob.Template.config({
       evaluate: /\{\{([\s\S]+?)\}\}/g,
       interpolate: /\{\{=([\s\S]+?)\}\}/g
-    };
+    });
 
     var custom = Mob.Template.compile('<ul>{{ for (var key in people) { }}<li>{{= people[key] }}</li>{{ } }}</ul>');
     result = custom({
@@ -127,10 +127,10 @@
       foo: 'bar'
     }), "Statement quotes and 'quotes'.");
 
-    Mob.Template.settings = {
+    Mob.Template.config({
       evaluate: /<\?([\s\S]+?)\?>/g,
       interpolate: /<\?=([\s\S]+?)\?>/g
-    };
+    });
 
     var customWithSpecialChars = Mob.Template.compile('<ul><? for (var key in people) { ?><li><?= people[key] ?></li><? } ?></ul>');
     result = customWithSpecialChars({
@@ -150,9 +150,9 @@
       foo: 'bar'
     }), "Statement quotes and 'quotes'.");
 
-    Mob.Template.settings = {
+    Mob.Template.config({
       interpolate: /\{\{(.+?)\}\}/g
-    };
+    });
 
     var mustache = Mob.Template.compile('Hello {{planet}}!');
     assert.equal(mustache({
@@ -188,16 +188,16 @@
       variable: 'data'
     });
     assert.strictEqual(tmp(data), 'x');
-    Mob.Template.settings.variable = 'data';
+    Mob.Template._settings.variable = 'data';
     assert.strictEqual(Mob.Template.compile(s)(data), 'x');
   });
 
   QUnit.test('#547 - Mob.Template.settings is unchanged by custom settings.', function(assert) {
-    assert.ok(!Mob.Template.settings.variable);
+    assert.ok(!Mob.Template._settings.variable);
     Mob.Template.compile('', {}, {
       variable: 'x'
     });
-    assert.ok(!Mob.Template.settings.variable);
+    assert.ok(!Mob.Template._settings.variable);
   });
 
   QUnit.test('#556 - undefined template variables.', function(assert) {
@@ -265,9 +265,9 @@
     assert.strictEqual(template(), '<<\nx\n>>');
   });
 
-  QUnit.test('Mob.Template.addHelpers', function(assert) {
+  QUnit.test('Mob.Template.registerHelpers', function(assert) {
 
-    Mob.Template.addHelpers({
+    Mob.Template.registerHelpers({
       add: function(a, b) {
         return a + b;
       },

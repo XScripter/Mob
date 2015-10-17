@@ -220,11 +220,11 @@ Mob.Logger.setHandler(function (messages, context) {
 
 ### 模板（`Mob.Template`）
 
-#### addHelpers
+#### registerHelpers
 给模板添加帮助函数，可以直接在 <% … %> 调用帮助函数。
 
 ```js
-Mob.Template.addHelpers({
+Mob.Template.registerHelpers({
   add: function(a, b) {
     return a + b;
   },

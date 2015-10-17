@@ -4,7 +4,7 @@ define('mob/template', function(require, exports, module) {
 
   var Template = {};
   var templateHelpers = {
-    insertComponent : function(componentName) {
+    insertComponent: function(componentName) {
       return '<div mo-component="' + componentName + '"></div>';
     }
   };
@@ -22,13 +22,17 @@ define('mob/template', function(require, exports, module) {
 
   var escaper = /\\|'|\r|\n|\u2028|\u2029/g;
 
-  Template.settings = {
+  Template._settings = {
     evaluate: /<%([\s\S]+?)%>/g,
     interpolate: /<%=([\s\S]+?)%>/g,
     escape: /<%-([\s\S]+?)%>/g
   };
 
-  Template.addHelpers = function(newHelpers) {
+  Template.config = function(options) {
+    lang.extend(Template._settings, options || {});
+  };
+
+  Template.registerHelpers = function(newHelpers) {
     lang.extend(templateHelpers, newHelpers);
   };
 
@@ -37,8 +41,11 @@ define('mob/template', function(require, exports, module) {
   };
 
   function template(text, settings, oldSettings) {
-    if (!settings && oldSettings) settings = oldSettings;
-    settings = lang.defaults({}, settings, Template.settings);
+    if (!settings && oldSettings) {
+      settings = oldSettings;
+    }
+
+    settings = lang.defaults({}, settings, Template._settings);
 
     // Combine delimiters into one regular expression via alternation.
     var matcher = RegExp([
@@ -63,10 +70,13 @@ define('mob/template', function(require, exports, module) {
       // Adobe VMs need the match returned to produce the correct offest.
       return match;
     });
+
     source += "';\n";
 
     // If a variable is not specified, place data values in local scope.
-    if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
+    if (!settings.variable) {
+      source = 'with(obj||{}){\n' + source + '}\n';
+    }
 
     source = "var __t,__p='',__j=Array.prototype.join," +
       "print=function(){__p+=__j.call(arguments,'');};\n" +
