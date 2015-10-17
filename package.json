@@ -1,11 +1,11 @@
 {
-  "name": "Mobird",
+  "name": "MobJS",
   "version": "0.2.0",
   "codename": "Bird-Titanium",
   "description": "Full Featured HTML5 Framework For Building Mobile Apps",
   "repository": {
     "type": "git",
-    "url": "https://github.com/xscripter/mobird.git"
+    "url": "https://github.com/XScripter/Mob.git"
   },
   "keywords": [
     "mobile",
@@ -16,9 +16,9 @@
     "MIT"
   ],
   "bugs": {
-    "url": "https://github.com/xscripter/mobird/issues"
+    "url": "https://github.com/XScripter/Mob/issues"
   },
-  "homepage": "http://www.xscripter.com/mobird/",
+  "homepage": "https://github.com/XScripter/Mob",
   "engines": {
     "node": ">= 0.10.0"
   },
