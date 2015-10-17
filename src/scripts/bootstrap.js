@@ -34,6 +34,7 @@ Mob.Template = require('mob/template');
 Mob.Component = require('mob/component');
 Mob.Screen = require('mob/screen');
 Mob.ScreenView = require('mob/screenView');
+Mob.ScreenComponent = require('mob/screenComponent');
 Mob.Router = require('mob/router');
 Mob.Application = require('mob/application');
 Mob.createApplication = function(options) {

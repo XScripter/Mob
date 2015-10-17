@@ -6741,7 +6741,7 @@
     };
   
     Template.config = function(options) {
-      lang.extend(Template._settings, options || {});
+      return lang.extend(Template._settings, options || {});
     };
   
     Template.registerHelpers = function(newHelpers) {
@@ -7844,6 +7844,7 @@
   Mob.Component = require('mob/component');
   Mob.Screen = require('mob/screen');
   Mob.ScreenView = require('mob/screenView');
+  Mob.ScreenComponent = require('mob/screenComponent');
   Mob.Router = require('mob/router');
   Mob.Application = require('mob/application');
   Mob.createApplication = function(options) {
