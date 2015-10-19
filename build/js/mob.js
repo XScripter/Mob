@@ -66,10 +66,10 @@
   
     require = function(id) {
       if (!modules[id]) {
-        throw '模块【' + id + '】没有定义！';
+        throw 'module ' + id + ' not found';
       } else if (id in inProgressModules) {
         var cycle = requireStack.slice(inProgressModules[id]).join('->') + '->' + id;
-        throw '模块与模块不能同时相互依赖: ' + cycle;
+        throw 'Cycle in module require graph: ' + cycle;
       }
       if (modules[id].factory) {
         try {
@@ -86,7 +86,7 @@
   
     define = function(id, factory) {
       if (modules[id]) {
-        throw '模块【' + id + '】已经存在，不能重复定义！';
+        throw 'module ' + id + ' already defined';
       }
       modules[id] = {
         id: id,
@@ -3118,7 +3118,7 @@
   
       var contentToCheck = lang.isString(content) ? content : content.toString();
   
-      var message = '请求异常 [' + statusCode + ']';
+      var message = 'failed [' + statusCode + ']';
   
       if (contentToCheck) {
         message += ' ' + truncate(contentToCheck.replace(/\n/g, ' '), MAX_LENGTH);
@@ -3149,7 +3149,7 @@
   
     HTTP.call = function(method, url, options, callback) {
   
-      // 传递的参数中可以不包含`options`
+      // support (method, url, callback) argument list
       if (!callback && isFunction(options)) {
         callback = options;
         options = null;
@@ -3158,7 +3158,7 @@
       options = options || {};
   
       if (isFunction(callback)) {
-        throw new Error('参数 `callback` 不为函数');
+        throw new Error('Can not make a blocking HTTP call from the client; callback required.');
       }
   
       method = (method || '').toUpperCase();
@@ -3184,7 +3184,7 @@
       if (auth) {
         var colonLoc = auth.indexOf(':');
         if (colonLoc < 0) {
-          throw new Error('`option.auth` 值需要遵从 "username:password" 表单格式');
+          throw new Error('auth option should be of the form "username:password"');
         }
         username = auth.substring(0, colonLoc);
         password = auth.substring(colonLoc + 1);
@@ -3210,7 +3210,6 @@
       callback = lang.once(callback);
   
       try {
-        // 初始化 xhr
         var xhr = new XMLHttpRequest();
   
         xhr.open(method, url, true, username, password);
@@ -3219,7 +3218,6 @@
           xhr.setRequestHeader(k, headers[k]);
         }
   
-        // 初始化 timeout
         var timedOut = false;
         var timer;
         if (options.timeout) {
@@ -3318,27 +3316,16 @@
   
     var Storage = function(options) {
   
-      var store = this;
       this.options = options || {};
       this.name = this.options.name || 'store';
   
-      if (lang.isArray(this.options.type)) {
-        lang.each(this.options.type, function(type, i) {
-          if (Storage.isAvailable(type)) {
-            store.type = type;
-            return false;
-          }
-        });
-      } else {
-        this.type = this.options.type || 'memory';
-      }
+      this.type = this.options.type || 'memory';
       this.meta_key = this.options.meta_key || '__keys__';
       this.storage = new Storage[Storage.stores[this.type]](this.name, this.options);
     };
   
     Storage.stores = {
       'memory': 'Memory',
-      'data': 'Data',
       'local': 'LocalStorage',
       'session': 'SessionStorage',
       'cookie': 'Cookie'
@@ -3359,21 +3346,17 @@
       },
   
       set: function(key, value) {
-        var string_value = (typeof value == 'string') ? value : JSON.stringify(value);
+        var stringValue = lang.isString(value) ? value : JSON.stringify(value);
         key = key.toString();
-        this.storage.set(key, string_value);
+        this.storage.set(key, stringValue);
         if (key != this.meta_key) {
           this._addKey(key)
         }
-        // always return the original value
         return value;
       },
   
       get: function(key) {
         var value = this.storage.get(key);
-        if (typeof value == 'undefined' || value == null || value == '') {
-          return value;
-        }
         try {
           return JSON.parse(value);
         } catch (e) {
@@ -3410,28 +3393,6 @@
         }
       },
   
-      filter: function(callback) {
-        var found = [];
-        this.each(function(key, value) {
-          if (callback(key, value)) {
-            found.push([key, value]);
-          }
-          return true;
-        });
-        return found;
-      },
-  
-      first: function(callback) {
-        var found = false;
-        this.each(function(key, value) {
-          if (callback(key, value)) {
-            found = [key, value];
-            return false;
-          }
-        });
-        return found;
-      },
-  
       fetch: function(key, callback) {
         if (!this.exists(key)) {
           return this.set(key, callback.apply(this));
@@ -3442,7 +3403,7 @@
   
       _addKey: function(key) {
         var keys = this.keys();
-        if (lang.indexOf(keys, key) == -1) {
+        if (lang.indexOf(keys, key) === -1) {
           keys.push(key);
         }
         this.set(this.meta_key, keys);
@@ -3450,11 +3411,12 @@
       _removeKey: function(key) {
         var keys = this.keys();
         var index = lang.indexOf(keys, key);
-        if (index != -1) {
+        if (index !== -1) {
           keys.splice(index, 1);
         }
         this.set(this.meta_key, keys);
       }
+  
     });
   
     Storage.isAvailable = function(type) {
@@ -3464,8 +3426,6 @@
         return false;
       }
     };
-  
-    // ==================== Cookie ====================
   
     Storage.Cookie = function(name, options) {
       this.name = name;
@@ -3489,15 +3449,15 @@
         return this._getCookie(key);
       },
       clear: function(key) {
-        this._setCookie(key, "", -1);
+        this._setCookie(key, '', -1);
       },
       _key: function(key) {
         return ['store', this.name, key].join('.');
       },
       _getCookie: function(key) {
         var escaped = this._key(key).replace(/(\.|\*|\(|\)|\[|\])/g, '\\$1');
-        var match = document.cookie.match("(^|;\\s)" + escaped + "=([^;]*)(;|$)");
-        return (match ? match[2] : null);
+        var match = document.cookie.match('(^|;\\s)' + escaped + '=([^;]*)(;|$)');
+        return match ? match[2] : null;
       },
       _setCookie: function(key, value, expires) {
         if (!expires) {
@@ -3505,16 +3465,13 @@
         }
         var date = new Date();
         date.setTime(date.getTime() + expires);
-        var set_cookie = [
-          this._key(key), "=", value,
-          "; expires=", date.toGMTString(),
-          "; path=", this.path
+        document.cookie = [
+          this._key(key), '=', value,
+          '; expires=', date.toGMTString(),
+          '; path=', this.path
         ].join('');
-        document.cookie = set_cookie;
       }
     });
-  
-    // ==================== Local ====================
   
     Storage.LocalStorage = function(name) {
       this.name = name;
@@ -3543,14 +3500,11 @@
   
     });
   
-    // ==================== Memory ====================
-  
     Storage.Memory = function(name) {
       this.name = name;
-      this.namespace = this.name;
       Storage.Memory.store = Storage.Memory.store || {};
-      Storage.Memory.store[this.namespace] = Storage.Memory.store[this.namespace] || {};
-      this.store = Storage.Memory.store[this.namespace];
+      Storage.Memory.store[this.name] = Storage.Memory.store[this.name] || {};
+      this.store = Storage.Memory.store[this.name];
     };
   
     lang.extend(Storage.Memory.prototype, {
@@ -3558,7 +3512,7 @@
         return true;
       },
       exists: function(key) {
-        return (typeof this.store[key] != 'undefined');
+        return !lang.isUndefined(this.store[key]);
       },
       set: function(key, value) {
         return this.store[key] = value;
@@ -3571,8 +3525,6 @@
       }
     });
   
-    // ==================== Session ====================
-  
     Storage.SessionStorage = function(name) {
       this.name = name;
     };
@@ -3581,7 +3533,7 @@
       isAvailable: function() {
         return ('sessionStorage' in window) &&
           (window.location.protocol != 'file:') &&
-          (lang.isFunction(window.sessionStorage.setItem));
+          lang.isFunction(window.sessionStorage.setItem);
       },
       exists: function(key) {
         return (this.get(key) != null);
@@ -3591,8 +3543,8 @@
       },
       get: function(key) {
         var value = window.sessionStorage.getItem(this._key(key));
-        if (value && typeof value.value != 'undefined') {
-          value = value.value
+        if (value && !lang.isUndefined(value.value)) {
+          value = value.value;
         }
         return value;
       },
@@ -4325,7 +4277,7 @@
   
     TouchEvent.prototype.findControl = function(labelElement) {
   
-      if (labelElement.control !== undefined) {
+      if (!lang.isUndefined(labelElement.control)) {
         return labelElement.control;
       }
   
@@ -4481,7 +4433,7 @@
       var metaViewport;
       var chromeVersion;
   
-      if (typeof window.ontouchstart === 'undefined') {
+      if (lang.isUndefined(window.ontouchstart)) {
         return true;
       }
   

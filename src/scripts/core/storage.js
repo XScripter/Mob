@@ -4,27 +4,16 @@ define('mob/storage', function(require, exports, module) {
 
   var Storage = function(options) {
 
-    var store = this;
     this.options = options || {};
     this.name = this.options.name || 'store';
 
-    if (lang.isArray(this.options.type)) {
-      lang.each(this.options.type, function(type, i) {
-        if (Storage.isAvailable(type)) {
-          store.type = type;
-          return false;
-        }
-      });
-    } else {
-      this.type = this.options.type || 'memory';
-    }
+    this.type = this.options.type || 'memory';
     this.meta_key = this.options.meta_key || '__keys__';
     this.storage = new Storage[Storage.stores[this.type]](this.name, this.options);
   };
 
   Storage.stores = {
     'memory': 'Memory',
-    'data': 'Data',
     'local': 'LocalStorage',
     'session': 'SessionStorage',
     'cookie': 'Cookie'
@@ -45,21 +34,17 @@ define('mob/storage', function(require, exports, module) {
     },
 
     set: function(key, value) {
-      var string_value = (typeof value == 'string') ? value : JSON.stringify(value);
+      var stringValue = lang.isString(value) ? value : JSON.stringify(value);
       key = key.toString();
-      this.storage.set(key, string_value);
+      this.storage.set(key, stringValue);
       if (key != this.meta_key) {
         this._addKey(key)
       }
-      // always return the original value
       return value;
     },
 
     get: function(key) {
       var value = this.storage.get(key);
-      if (typeof value == 'undefined' || value == null || value == '') {
-        return value;
-      }
       try {
         return JSON.parse(value);
       } catch (e) {
@@ -96,28 +81,6 @@ define('mob/storage', function(require, exports, module) {
       }
     },
 
-    filter: function(callback) {
-      var found = [];
-      this.each(function(key, value) {
-        if (callback(key, value)) {
-          found.push([key, value]);
-        }
-        return true;
-      });
-      return found;
-    },
-
-    first: function(callback) {
-      var found = false;
-      this.each(function(key, value) {
-        if (callback(key, value)) {
-          found = [key, value];
-          return false;
-        }
-      });
-      return found;
-    },
-
     fetch: function(key, callback) {
       if (!this.exists(key)) {
         return this.set(key, callback.apply(this));
@@ -128,7 +91,7 @@ define('mob/storage', function(require, exports, module) {
 
     _addKey: function(key) {
       var keys = this.keys();
-      if (lang.indexOf(keys, key) == -1) {
+      if (lang.indexOf(keys, key) === -1) {
         keys.push(key);
       }
       this.set(this.meta_key, keys);
@@ -136,11 +99,12 @@ define('mob/storage', function(require, exports, module) {
     _removeKey: function(key) {
       var keys = this.keys();
       var index = lang.indexOf(keys, key);
-      if (index != -1) {
+      if (index !== -1) {
         keys.splice(index, 1);
       }
       this.set(this.meta_key, keys);
     }
+
   });
 
   Storage.isAvailable = function(type) {
@@ -150,8 +114,6 @@ define('mob/storage', function(require, exports, module) {
       return false;
     }
   };
-
-  // ==================== Cookie ====================
 
   Storage.Cookie = function(name, options) {
     this.name = name;
@@ -175,15 +137,15 @@ define('mob/storage', function(require, exports, module) {
       return this._getCookie(key);
     },
     clear: function(key) {
-      this._setCookie(key, "", -1);
+      this._setCookie(key, '', -1);
     },
     _key: function(key) {
       return ['store', this.name, key].join('.');
     },
     _getCookie: function(key) {
       var escaped = this._key(key).replace(/(\.|\*|\(|\)|\[|\])/g, '\\$1');
-      var match = document.cookie.match("(^|;\\s)" + escaped + "=([^;]*)(;|$)");
-      return (match ? match[2] : null);
+      var match = document.cookie.match('(^|;\\s)' + escaped + '=([^;]*)(;|$)');
+      return match ? match[2] : null;
     },
     _setCookie: function(key, value, expires) {
       if (!expires) {
@@ -191,16 +153,13 @@ define('mob/storage', function(require, exports, module) {
       }
       var date = new Date();
       date.setTime(date.getTime() + expires);
-      var set_cookie = [
-        this._key(key), "=", value,
-        "; expires=", date.toGMTString(),
-        "; path=", this.path
+      document.cookie = [
+        this._key(key), '=', value,
+        '; expires=', date.toGMTString(),
+        '; path=', this.path
       ].join('');
-      document.cookie = set_cookie;
     }
   });
-
-  // ==================== Local ====================
 
   Storage.LocalStorage = function(name) {
     this.name = name;
@@ -229,14 +188,11 @@ define('mob/storage', function(require, exports, module) {
 
   });
 
-  // ==================== Memory ====================
-
   Storage.Memory = function(name) {
     this.name = name;
-    this.namespace = this.name;
     Storage.Memory.store = Storage.Memory.store || {};
-    Storage.Memory.store[this.namespace] = Storage.Memory.store[this.namespace] || {};
-    this.store = Storage.Memory.store[this.namespace];
+    Storage.Memory.store[this.name] = Storage.Memory.store[this.name] || {};
+    this.store = Storage.Memory.store[this.name];
   };
 
   lang.extend(Storage.Memory.prototype, {
@@ -244,7 +200,7 @@ define('mob/storage', function(require, exports, module) {
       return true;
     },
     exists: function(key) {
-      return (typeof this.store[key] != 'undefined');
+      return !lang.isUndefined(this.store[key]);
     },
     set: function(key, value) {
       return this.store[key] = value;
@@ -257,8 +213,6 @@ define('mob/storage', function(require, exports, module) {
     }
   });
 
-  // ==================== Session ====================
-
   Storage.SessionStorage = function(name) {
     this.name = name;
   };
@@ -267,7 +221,7 @@ define('mob/storage', function(require, exports, module) {
     isAvailable: function() {
       return ('sessionStorage' in window) &&
         (window.location.protocol != 'file:') &&
-        (lang.isFunction(window.sessionStorage.setItem));
+        lang.isFunction(window.sessionStorage.setItem);
     },
     exists: function(key) {
       return (this.get(key) != null);
@@ -277,8 +231,8 @@ define('mob/storage', function(require, exports, module) {
     },
     get: function(key) {
       var value = window.sessionStorage.getItem(this._key(key));
-      if (value && typeof value.value != 'undefined') {
-        value = value.value
+      if (value && !lang.isUndefined(value.value)) {
+        value = value.value;
       }
       return value;
     },

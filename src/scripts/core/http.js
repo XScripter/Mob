@@ -14,7 +14,7 @@ define('mob/http', function(require, exports, module) {
 
     var contentToCheck = lang.isString(content) ? content : content.toString();
 
-    var message = '请求异常 [' + statusCode + ']';
+    var message = 'failed [' + statusCode + ']';
 
     if (contentToCheck) {
       message += ' ' + truncate(contentToCheck.replace(/\n/g, ' '), MAX_LENGTH);
@@ -45,7 +45,7 @@ define('mob/http', function(require, exports, module) {
 
   HTTP.call = function(method, url, options, callback) {
 
-    // 传递的参数中可以不包含`options`
+    // support (method, url, callback) argument list
     if (!callback && isFunction(options)) {
       callback = options;
       options = null;
@@ -54,7 +54,7 @@ define('mob/http', function(require, exports, module) {
     options = options || {};
 
     if (isFunction(callback)) {
-      throw new Error('参数 `callback` 不为函数');
+      throw new Error('Can not make a blocking HTTP call from the client; callback required.');
     }
 
     method = (method || '').toUpperCase();
@@ -80,7 +80,7 @@ define('mob/http', function(require, exports, module) {
     if (auth) {
       var colonLoc = auth.indexOf(':');
       if (colonLoc < 0) {
-        throw new Error('`option.auth` 值需要遵从 "username:password" 表单格式');
+        throw new Error('auth option should be of the form "username:password"');
       }
       username = auth.substring(0, colonLoc);
       password = auth.substring(colonLoc + 1);
@@ -106,7 +106,6 @@ define('mob/http', function(require, exports, module) {
     callback = lang.once(callback);
 
     try {
-      // 初始化 xhr
       var xhr = new XMLHttpRequest();
 
       xhr.open(method, url, true, username, password);
@@ -115,7 +114,6 @@ define('mob/http', function(require, exports, module) {
         xhr.setRequestHeader(k, headers[k]);
       }
 
-      // 初始化 timeout
       var timedOut = false;
       var timer;
       if (options.timeout) {
