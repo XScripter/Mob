@@ -153,6 +153,7 @@ define('mob/storage', function(require, exports, module) {
       }
       var date = new Date();
       date.setTime(date.getTime() + expires);
+
       document.cookie = [
         this._key(key), '=', value,
         '; expires=', date.toGMTString(),
