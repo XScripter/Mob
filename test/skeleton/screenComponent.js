@@ -101,7 +101,7 @@
   QUnit.asyncTest('Components can be specified on on non-DIV elements', function(assert) {
 
     var MyItemViewClass = Mob.View.extend({
-      el: "#container-component",
+      el: '#container-component',
 
       initialize: function() {
         Mob.ScreenComponent.add(this);
@@ -109,12 +109,12 @@
       },
 
       render: function() {
-        this.$el.html("<table><head><tr mo-component=\"myComponent\"></tr></thead></table>");
+        this.$el.html('<table><head><tr mo-component="myComponent"></tr></thead></table>');
       },
 
       componentCreators: {
         myComponent: function() {
-          assert.ok(true, "Component creator method called");
+          assert.ok(true, 'Component creator method called');
           start();
           return new MyComponentClass();
         }
@@ -127,11 +127,11 @@
 
   });
 
-  QUnit.asyncTest("Components are rendered when parent is rendered", function() {
+  QUnit.asyncTest('Components are rendered when parent is rendered', function() {
 
     var MyItemViewClass = Mob.View.extend({
 
-      el: "#container-component",
+      el: '#container-component',
 
       initialize: function() {
         Mob.ScreenComponent.add(this);
@@ -139,7 +139,7 @@
       },
 
       render: function() {
-        this.$el.html("<div mo-component=\"myComponent\"></div>");
+        this.$el.html('<div mo-component="myComponent"></div>');
       },
 
       componentCreators: {
@@ -150,8 +150,8 @@
 
       onComponentsRendered: function() {
         start();
-        ok(true, "onComponentsRendered is called");
-        equal(Mob.$("#container-component div").html(), "rendered", "component is rendered");
+        ok(true, 'onComponentsRendered is called');
+        equal(Mob.$('#container-component div').html(), 'rendered', 'component is rendered');
       }
 
     });
@@ -166,11 +166,11 @@
 
   });
 
-  QUnit.test("Components replace placeholder divs", function() {
+  QUnit.test('Components replace placeholder divs', function() {
 
     var MyItemViewClass = Mob.View.extend({
 
-      el: "#container-component",
+      el: '#container-component',
 
       initialize: function() {
         Mob.ScreenComponent.add(this);
@@ -178,7 +178,7 @@
       },
 
       render: function() {
-        this.$el.html("<span><div mo-component=\"myComponent\"></div></span>");
+        this.$el.html('<span><div mo-component="myComponent"></div></span>');
       },
 
       componentCreators: {
@@ -197,17 +197,17 @@
 
     var componentInstance = itemViewInstance.components.myComponent;
 
-    equal(componentInstance.$el.parent().prop("tagName"), "SPAN", "Component replaces corresponding placeholder");
+    equal(componentInstance.$el.parent().prop('tagName'), 'SPAN', 'Component replaces corresponding placeholder');
 
   });
 
-  QUnit.asyncTest("Components mantain state when parent view is rerended", function() {
+  QUnit.asyncTest('Components mantain state when parent view is rerended', function() {
 
     var renderCount = 0;
 
     var MyItemViewClass = Mob.View.extend({
 
-      el: "#container-component",
+      el: '#container-component',
 
       initialize: function() {
         Mob.ScreenComponent.add(this);
@@ -215,7 +215,7 @@
       },
 
       render: function() {
-        this.$el.html("<div mo-component=\"myComponent\"></div>");
+        this.$el.html('<div mo-component="myComponent"></div>');
       },
 
       componentCreators: {
@@ -228,7 +228,7 @@
       onComponentsRendered: function() {
         renderCount++;
         if (renderCount === 2) {
-          ok(this.components.myComponent.state, "Component state is perserved");
+          ok(this.components.myComponent.state, 'Component state is perserved');
         }
         start();
       }

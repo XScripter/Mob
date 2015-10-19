@@ -33,9 +33,11 @@ define('mob/error', function(require, exports, module) {
     },
 
     toString: function() {
-      return this.name + ': ' + this.message + (this.url ? ' 查阅： ' + this.url : '');
+      return this.name + ': ' + this.message + (this.url ? ' See: ' + this.url : '');
     }
   });
+
+  MoError.extend = lang.inherits;
 
   module.exports = MoError;
 
