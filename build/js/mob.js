@@ -7020,10 +7020,10 @@
       this._errors = {
         '_': function( /* err, url, httpCode */ ) {},
         '_404': function(err, url) {
-          Logger.warn('404! 没有找到匹配链接 ' + url + ' 的路由');
+          Logger.warn('404! Unmatched route for url ' + url);
         },
         '_500': function(err, url) {
-          Logger.error('500! 执行链接 ' + url + ' 匹配路由时出现内部异常');
+          Logger.error('500! Internal error route for url ' + url);
         }
       };
       this._paused = false;
@@ -7056,7 +7056,7 @@
   
     Router.prototype._buildRequestObject = function(fragmentUrl, params, splat, hasNext) {
       if (!fragmentUrl) {
-        throw new Error('参数 fragmentUrl 为空，无法编译请求对象');
+        throw new Error('Unable to compile request object');
       }
       var request = new RouterRequest(fragmentUrl);
       if (params) {
@@ -7090,7 +7090,7 @@
         params = {},
         splat = [];
       if (!route) {
-        return this._throwsRouteError(500, new Error('路由为空，出现内部异常'), fragmentUrl);
+        return this._throwsRouteError(500, new Error('Internal error'), fragmentUrl);
       }
       for (var i = 0, len = route.paramNames.length; i < len; i++) {
         params[route.paramNames[i]] = match[i + 1];
@@ -7238,10 +7238,10 @@
   
     Router.prototype.errors = function(httpCode, callback) {
       if (lang.isNaN(httpCode)) {
-        throw new Error('参数 httpCode 不符合规范，必须为数字');
+        throw new Error('Invalid code for routes error handling');
       }
       if (!lang.isFunction(callback)) {
-        throw new Error('参数 callback 不符合规范，必须为函数');
+        throw new Error('Invalid callback for routes error handling');
       }
       httpCode = '_' + httpCode;
       this._errors[httpCode] = callback;
