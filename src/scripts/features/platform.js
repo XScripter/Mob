@@ -9,6 +9,37 @@ define('mob/platform', function(require, exports, module) {
   var requestAnimationFrame = lang.requestAnimationFrame;
   var $body = $('body');
 
+  var platformName = null,
+    platformVersion = null,
+    readyCallbacks = [],
+    windowLoadListenderAttached;
+
+  function onPlatformReady() {
+    // the device is all set to go, init our own stuff then fire off our event
+    Platform.isReady = true;
+    Platform.detect();
+    for (var x = 0; x < readyCallbacks.length; x++) {
+      // fire off all the callbacks that were added before the platform was ready
+      readyCallbacks[x]();
+    }
+    readyCallbacks = [];
+
+    requestAnimationFrame(function() {
+      $body.addClass('platform-ready');
+    });
+  }
+
+  function onWindowLoad() {
+    if (Platform.isWebView()) {
+      document.addEventListener('deviceready', onPlatformReady, false);
+    } else {
+      onPlatformReady();
+    }
+    if (windowLoadListenderAttached) {
+      window.removeEventListener('load', onWindowLoad, false);
+    }
+  }
+
   var Platform = {
 
     navigator: window.navigator,
@@ -28,8 +59,6 @@ define('mob/platform', function(require, exports, module) {
       if (Platform.isReady) {
         cb();
       } else {
-        // the platform isn't ready yet, add it to this array
-        // which will be called once the platform is ready
         readyCallbacks.push(cb);
       }
     },
@@ -38,7 +67,6 @@ define('mob/platform', function(require, exports, module) {
       Platform._checkPlatforms();
 
       requestAnimationFrame(function() {
-        // only add to the body class if we got platform info
         for (var i = 0; i < Platform.platforms.length; i++) {
           $body.addClass('platform-' + Platform.platforms[i]);
         }
@@ -74,7 +102,9 @@ define('mob/platform', function(require, exports, module) {
       } else {
         Platform.platforms.push('browser');
       }
-      if (Platform.isIPad()) Platform.platforms.push('ipad');
+      if (Platform.isIPad()) {
+        Platform.platforms.push('ipad');
+      }
 
       var platform = Platform.platform();
       if (platform) {
@@ -131,7 +161,9 @@ define('mob/platform', function(require, exports, module) {
 
     platform: function() {
       // singleton to get the platform name
-      if (platformName === null) Platform.setPlatform(Platform.device().platform);
+      if (platformName === null) {
+        Platform.setPlatform(Platform.device().platform);
+      }
       return platformName;
     },
 
@@ -152,8 +184,9 @@ define('mob/platform', function(require, exports, module) {
     },
 
     version: function() {
-      // singleton to get the platform version
-      if (platformVersion === null) Platform.setVersion(Platform.device().version);
+      if (platformVersion === null) {
+        Platform.setVersion(Platform.device().version);
+      }
       return platformVersion;
     },
 
@@ -249,27 +282,6 @@ define('mob/platform', function(require, exports, module) {
 
   };
 
-  var platformName = null, // just the name, like iOS or Android
-    platformVersion = null, // a float of the major and minor, like 7.1
-    readyCallbacks = [],
-    windowLoadListenderAttached;
-
-  // setup listeners to know when the device is ready to go
-  function onWindowLoad() {
-    if (Platform.isWebView()) {
-      // the window and scripts are fully loaded, and a cordova/phonegap
-      // object exists then let's listen for the deviceready
-      document.addEventListener('deviceready', onPlatformReady, false);
-    } else {
-      // the window and scripts are fully loaded, but the window object doesn't have the
-      // cordova/phonegap object, so its just a browser, not a webview wrapped w/ cordova
-      onPlatformReady();
-    }
-    if (windowLoadListenderAttached) {
-      window.removeEventListener('load', onWindowLoad, false);
-    }
-  }
-
   Platform.initialize = function() {
     if (document.readyState === 'complete') {
       onWindowLoad();
@@ -278,21 +290,6 @@ define('mob/platform', function(require, exports, module) {
       window.addEventListener('load', onWindowLoad, false);
     }
   };
-
-  function onPlatformReady() {
-    // the device is all set to go, init our own stuff then fire off our event
-    Platform.isReady = true;
-    Platform.detect();
-    for (var x = 0; x < readyCallbacks.length; x++) {
-      // fire off all the callbacks that were added before the platform was ready
-      readyCallbacks[x]();
-    }
-    readyCallbacks = [];
-
-    requestAnimationFrame(function() {
-      $body.addClass('platform-ready');
-    });
-  }
 
   module.exports = Platform;
 
