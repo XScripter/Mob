@@ -4515,6 +4515,8 @@
   
     var lang = require('mob/lang');
     var Support = require('mob/support');
+    var $ = require('mob/jqlite');
+    var Error = require('mob/error');
   
     var requestAnimationFrame = lang.requestAnimationFrame;
     var nowFn = lang.now;
@@ -4531,7 +4533,6 @@
     };
   
     var isBadAndroid = /Android /.test(window.navigator.appVersion) && !(/Chrome\/\d/.test(window.navigator.appVersion));
-  
     var transStyle = {
       transform: prefixStyle('transform'),
       transitionTimingFunction: prefixStyle('transitionTimingFunction'),
@@ -4739,7 +4740,6 @@
         this.options.tap = 'tap';
       }
   
-      // Some defaults
       this.x = 0;
       this.y = 0;
       this.directionX = 0;
@@ -5327,6 +5327,17 @@
             break;
         }
       }
+    };
+  
+    Scroller.createScroller = function(el, options) {
+  
+      if (lang.isUndefined(el)) {
+        throw Error('`el` is empty.');
+      }
+  
+      return new Scroller($(el).get(0), lang.extend({
+        mouseWheel: true
+      }, options || {}));
     };
   
     module.exports = Scroller;
