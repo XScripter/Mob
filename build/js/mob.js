@@ -3563,7 +3563,33 @@
 
   define('mob/support', function(require, exports, module) {
   
+    var elementStyle = document.createElement('div').style;
+    var vendorCSS = (function() {
+      var vendors = ['t', 'webkitT', 'MozT', 'msT', 'OT'], transform, i = 0, l = vendors.length;
+  
+      for (; i < l; i++) {
+        transform = vendors[i] + 'ransform';
+        if (transform in elementStyle) {
+          return vendors[i].substr(0, vendors[i].length - 1);
+        }
+      }
+  
+      return false;
+    })();
+  
+    var prefixStyle = function(style) {
+      if (vendorCSS === false) {
+        return false;
+      }
+      if (vendorCSS === '') {
+        return style;
+      }
+      return vendorCSS + style.charAt(0).toUpperCase() + style.substr(1);
+    };
+  
     var Support = {
+  
+      getPrefixStyle: prefixStyle,
   
       addEventListener: !!window.addEventListener,
   
@@ -3603,7 +3629,17 @@
         return result;
       },
   
-      animationEvents: (typeof window.WebKitAnimationEvent !== 'undefined')
+      animationEvents: (typeof window.WebKitAnimationEvent !== 'undefined'),
+  
+      hasTransform: prefixStyle('transform') !== false,
+  
+      hasPerspective: prefixStyle('perspective') in elementStyle,
+  
+      hasTouch: 'ontouchstart' in window,
+  
+      hasPointer: window.PointerEvent || window.MSPointerEvent,
+  
+      hasTransition: prefixStyle('transition') in elementStyle
   
     };
   
@@ -4478,225 +4514,181 @@
   define('mob/scroller', function(require, exports, module) {
   
     var lang = require('mob/lang');
+    var Support = require('mob/support');
   
-    var utils = (function() {
-      var me = {};
+    var requestAnimationFrame = lang.requestAnimationFrame;
+    var nowFn = lang.now;
+    var prefixStyle = Support.getPrefixStyle;
   
-      var _elementStyle = document.createElement('div').style;
-      var _vendor = (function() {
-        var vendors = ['t', 'webkitT', 'MozT', 'msT', 'OT'],
-          transform,
-          i = 0,
-          l = vendors.length;
+    var addEventFn = function(el, type, fn, capture) {
+      el.addEventListener(type, fn, !!capture);
+    };
+    var removeEventFn = function(el, type, fn, capture) {
+      el.removeEventListener(type, fn, !!capture);
+    };
+    var prefixPointerEventFn = function(pointerEvent) {
+      return window.MSPointerEvent ? 'MSPointer' + pointerEvent.charAt(9).toUpperCase() + pointerEvent.substr(10) : pointerEvent;
+    };
   
-        for (; i < l; i++) {
-          transform = vendors[i] + 'ransform';
-          if (transform in _elementStyle) return vendors[i].substr(0, vendors[i].length - 1);
+    var isBadAndroid = /Android /.test(window.navigator.appVersion) && !(/Chrome\/\d/.test(window.navigator.appVersion));
+  
+    var transStyle = {
+      transform: prefixStyle('transform'),
+      transitionTimingFunction: prefixStyle('transitionTimingFunction'),
+      transitionDuration: prefixStyle('transitionDuration'),
+      transitionDelay: prefixStyle('transitionDelay'),
+      transformOrigin: prefixStyle('transformOrigin')
+    };
+    var supportEventType = {
+      touchstart: 1,
+      touchmove: 1,
+      touchend: 1,
+  
+      mousedown: 2,
+      mousemove: 2,
+      mouseup: 2,
+  
+      pointerdown: 3,
+      pointermove: 3,
+      pointerup: 3,
+  
+      MSPointerDown: 3,
+      MSPointerMove: 3,
+      MSPointerUp: 3
+    };
+  
+    var easeEffect = {
+      quadratic: {
+        style: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        fn: function(k) {
+          return k * (2 - k);
         }
+      },
+      circular: {
+        style: 'cubic-bezier(0.1, 0.57, 0.1, 1)', // Not properly 'circular' but this looks better, it should be (0.075, 0.82, 0.165, 1)
+        fn: function(k) {
+          return Math.sqrt(1 - (--k * k));
+        }
+      },
+      back: {
+        style: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+        fn: function(k) {
+          var b = 4;
+          return (k = k - 1) * k * ((b + 1) * k + b) + 1;
+        }
+      },
+      bounce: {
+        style: '',
+        fn: function(k) {
+          if ((k /= 1) < (1 / 2.75)) {
+            return 7.5625 * k * k;
+          } else if (k < (2 / 2.75)) {
+            return 7.5625 * (k -= (1.5 / 2.75)) * k + 0.75;
+          } else if (k < (2.5 / 2.75)) {
+            return 7.5625 * (k -= (2.25 / 2.75)) * k + 0.9375;
+          } else {
+            return 7.5625 * (k -= (2.625 / 2.75)) * k + 0.984375;
+          }
+        }
+      },
+      elastic: {
+        style: '',
+        fn: function(k) {
+          var f = 0.22,
+            e = 0.4;
   
-        return false;
-      })();
+          if (k === 0) {
+            return 0;
+          }
+          if (k == 1) {
+            return 1;
+          }
   
-      function _prefixStyle(style) {
-        if (_vendor === false) return false;
-        if (_vendor === '') return style;
-        return _vendor + style.charAt(0).toUpperCase() + style.substr(1);
+          return (e * Math.pow(2, -10 * k) * Math.sin((k - f / 4) * (2 * Math.PI) / f) + 1);
+        }
+      }
+    };
+  
+    var momentumFn = function(current, start, time, lowerMargin, wrapperSize, deceleration) {
+      var distance = current - start,
+        speed = Math.abs(distance) / time,
+        destination, duration;
+  
+      deceleration = deceleration === undefined ? 0.0006 : deceleration;
+  
+      destination = current + (speed * speed) / (2 * deceleration) * (distance < 0 ? -1 : 1);
+      duration = speed / deceleration;
+  
+      if (destination < lowerMargin) {
+        destination = wrapperSize ? lowerMargin - (wrapperSize / 2.5 * (speed / 8)) : lowerMargin;
+        distance = Math.abs(destination - current);
+        duration = distance / speed;
+      } else if (destination > 0) {
+        destination = wrapperSize ? wrapperSize / 2.5 * (speed / 8) : 0;
+        distance = Math.abs(current) + destination;
+        duration = distance / speed;
       }
   
-      me.addEvent = function(el, type, fn, capture) {
-        el.addEventListener(type, fn, !!capture);
+      return {
+        destination: Math.round(destination),
+        duration: duration
       };
+    };
   
-      me.removeEvent = function(el, type, fn, capture) {
-        el.removeEventListener(type, fn, !!capture);
+    var offsetFn = function(el) {
+      var left = -el.offsetLeft,
+        top = -el.offsetTop;
+  
+      while (el = el.offsetParent) {
+        left -= el.offsetLeft;
+        top -= el.offsetTop;
+      }
+  
+      return {
+        left: left,
+        top: top
       };
+    };
   
-      me.prefixPointerEvent = function(pointerEvent) {
-        return window.MSPointerEvent ?
-        'MSPointer' + pointerEvent.charAt(9).toUpperCase() + pointerEvent.substr(10) :
-          pointerEvent;
-      };
-  
-      me.momentum = function(current, start, time, lowerMargin, wrapperSize, deceleration) {
-        var distance = current - start,
-          speed = Math.abs(distance) / time,
-          destination,
-          duration;
-  
-        deceleration = deceleration === undefined ? 0.0006 : deceleration;
-  
-        destination = current + (speed * speed) / (2 * deceleration) * (distance < 0 ? -1 : 1);
-        duration = speed / deceleration;
-  
-        if (destination < lowerMargin) {
-          destination = wrapperSize ? lowerMargin - (wrapperSize / 2.5 * (speed / 8)) : lowerMargin;
-          distance = Math.abs(destination - current);
-          duration = distance / speed;
-        } else if (destination > 0) {
-          destination = wrapperSize ? wrapperSize / 2.5 * (speed / 8) : 0;
-          distance = Math.abs(current) + destination;
-          duration = distance / speed;
+    var preventDefaultExceptionFn = function(el, exceptions) {
+      for (var i in exceptions) {
+        if (exceptions[i].test(el[i])) {
+          return true;
         }
+      }
   
-        return {
-          destination: Math.round(destination),
-          duration: duration
-        };
-      };
+      return false;
+    };
   
-      var _transform = _prefixStyle('transform');
+    var doTapEvent = function(e, eventName) {
+      var ev = document.createEvent('Event');
+      ev.initEvent(eventName, true, true);
+      ev.pageX = e.pageX;
+      ev.pageY = e.pageY;
+      e.target.dispatchEvent(ev);
+    };
   
-      lang.extend(me, {
-        hasTransform: _transform !== false,
-        hasPerspective: _prefixStyle('perspective') in _elementStyle,
-        hasTouch: 'ontouchstart' in window,
-        hasPointer: window.PointerEvent || window.MSPointerEvent, // IE10 is prefixed
-        hasTransition: _prefixStyle('transition') in _elementStyle
-      });
+    var doClickEvent = function(e) {
+      var target = e.target, ev;
   
-      // This should find all Android browsers lower than build 535.19 (both stock browser and webview)
-      me.isBadAndroid = /Android /.test(window.navigator.appVersion) && !(/Chrome\/\d/.test(window.navigator.appVersion));
+      if (!(/(SELECT|INPUT|TEXTAREA)/i).test(target.tagName)) {
+        ev = document.createEvent('MouseEvents');
+        ev.initMouseEvent('click', true, true, e.view, 1,
+          target.screenX, target.screenY, target.clientX, target.clientY,
+          e.ctrlKey, e.altKey, e.shiftKey, e.metaKey,
+          0, null);
   
-      lang.extend(me.style = {}, {
-        transform: _transform,
-        transitionTimingFunction: _prefixStyle('transitionTimingFunction'),
-        transitionDuration: _prefixStyle('transitionDuration'),
-        transitionDelay: _prefixStyle('transitionDelay'),
-        transformOrigin: _prefixStyle('transformOrigin')
-      });
-  
-      me.offset = function(el) {
-        var left = -el.offsetLeft,
-          top = -el.offsetTop;
-  
-        // jshint -W084
-        while (el = el.offsetParent) {
-          left -= el.offsetLeft;
-          top -= el.offsetTop;
-        }
-        // jshint +W084
-  
-        return {
-          left: left,
-          top: top
-        };
-      };
-  
-      me.preventDefaultException = function(el, exceptions) {
-        for (var i in exceptions) {
-          if (exceptions[i].test(el[i])) {
-            return true;
-          }
-        }
-  
-        return false;
-      };
-  
-      lang.extend(me.eventType = {}, {
-        touchstart: 1,
-        touchmove: 1,
-        touchend: 1,
-  
-        mousedown: 2,
-        mousemove: 2,
-        mouseup: 2,
-  
-        pointerdown: 3,
-        pointermove: 3,
-        pointerup: 3,
-  
-        MSPointerDown: 3,
-        MSPointerMove: 3,
-        MSPointerUp: 3
-      });
-  
-      lang.extend(me.ease = {}, {
-        quadratic: {
-          style: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          fn: function(k) {
-            return k * (2 - k);
-          }
-        },
-        circular: {
-          style: 'cubic-bezier(0.1, 0.57, 0.1, 1)', // Not properly "circular" but this looks better, it should be (0.075, 0.82, 0.165, 1)
-          fn: function(k) {
-            return Math.sqrt(1 - (--k * k));
-          }
-        },
-        back: {
-          style: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-          fn: function(k) {
-            var b = 4;
-            return (k = k - 1) * k * ((b + 1) * k + b) + 1;
-          }
-        },
-        bounce: {
-          style: '',
-          fn: function(k) {
-            if ((k /= 1) < (1 / 2.75)) {
-              return 7.5625 * k * k;
-            } else if (k < (2 / 2.75)) {
-              return 7.5625 * (k -= (1.5 / 2.75)) * k + 0.75;
-            } else if (k < (2.5 / 2.75)) {
-              return 7.5625 * (k -= (2.25 / 2.75)) * k + 0.9375;
-            } else {
-              return 7.5625 * (k -= (2.625 / 2.75)) * k + 0.984375;
-            }
-          }
-        },
-        elastic: {
-          style: '',
-          fn: function(k) {
-            var f = 0.22,
-              e = 0.4;
-  
-            if (k === 0) {
-              return 0;
-            }
-            if (k == 1) {
-              return 1;
-            }
-  
-            return (e * Math.pow(2, -10 * k) * Math.sin((k - f / 4) * (2 * Math.PI) / f) + 1);
-          }
-        }
-      });
-  
-      me.tap = function(e, eventName) {
-        var ev = document.createEvent('Event');
-        ev.initEvent(eventName, true, true);
-        ev.pageX = e.pageX;
-        ev.pageY = e.pageY;
-        e.target.dispatchEvent(ev);
-      };
-  
-      me.click = function(e) {
-        var target = e.target,
-          ev;
-  
-        if (!(/(SELECT|INPUT|TEXTAREA)/i).test(target.tagName)) {
-          ev = document.createEvent('MouseEvents');
-          ev.initMouseEvent('click', true, true, e.view, 1,
-            target.screenX, target.screenY, target.clientX, target.clientY,
-            e.ctrlKey, e.altKey, e.shiftKey, e.metaKey,
-            0, null);
-  
-          ev._constructed = true;
-          target.dispatchEvent(ev);
-        }
-      };
-  
-      return me;
-    })();
+        ev._constructed = true;
+        target.dispatchEvent(ev);
+      }
+    };
   
     function Scroller(el, options) {
-      this.wrapper = typeof el == 'string' ? document.querySelector(el) : el;
+      this.wrapper = lang.isString(el) ? document.querySelector(el) : el;
       this.scroller = this.wrapper.children[0];
       this.scrollerStyle = this.scroller.style; // cache style for better performance
   
       this.options = {
-  
-        // INSERT POINT: OPTIONS
   
         startX: 0,
         startY: 0,
@@ -4723,10 +4715,10 @@
       }
   
       // Normalize options
-      this.translateZ = this.options.HWCompositing && utils.hasPerspective ? ' translateZ(0)' : '';
+      this.translateZ = this.options.HWCompositing && Support.hasPerspective ? ' translateZ(0)' : '';
   
-      this.options.useTransition = utils.hasTransition && this.options.useTransition;
-      this.options.useTransform = utils.hasTransform && this.options.useTransform;
+      this.options.useTransition = Support.hasTransition && this.options.useTransition;
+      this.options.useTransform = Support.hasTransform && this.options.useTransform;
   
       this.options.eventPassthrough = this.options.eventPassthrough === true ? 'vertical' : this.options.eventPassthrough;
       this.options.preventDefault = !this.options.eventPassthrough && this.options.preventDefault;
@@ -4739,15 +4731,13 @@
       this.options.freeScroll = this.options.freeScroll && !this.options.eventPassthrough;
       this.options.directionLockThreshold = this.options.eventPassthrough ? 0 : this.options.directionLockThreshold;
   
-      this.options.bounceEasing = typeof this.options.bounceEasing == 'string' ? utils.ease[this.options.bounceEasing] || utils.ease.circular : this.options.bounceEasing;
+      this.options.bounceEasing = lang.isString(this.options.bounceEasing) ? easeEffect[this.options.bounceEasing] || easeEffect.circular : this.options.bounceEasing;
   
-      this.options.resizePolling = this.options.resizePolling === undefined ? 60 : this.options.resizePolling;
+      this.options.resizePolling = lang.isUndefined(this.options.resizePolling) ? 60 : this.options.resizePolling;
   
       if (this.options.tap === true) {
         this.options.tap = 'tap';
       }
-  
-      // INSERT POINT: NORMALIZATION
   
       // Some defaults
       this.x = 0;
@@ -4755,8 +4745,6 @@
       this.directionX = 0;
       this.directionY = 0;
       this._events = {};
-  
-      // INSERT POINT: DEFAULTS
   
       this._init();
       this.refresh();
@@ -4769,9 +4757,6 @@
   
       _init: function() {
         this._initEvents();
-  
-        // INSERT POINT: _init
-  
       },
   
       destroy: function() {
@@ -4793,25 +4778,23 @@
       },
   
       _start: function(e) {
-        // React to left mouse button only
-        if (utils.eventType[e.type] != 1) {
+        if (supportEventType[e.type] != 1) {
           if (e.button !== 0) {
             return;
           }
         }
   
-        if (!this.enabled || (this.initiated && utils.eventType[e.type] !== this.initiated)) {
+        if (!this.enabled || (this.initiated && supportEventType[e.type] !== this.initiated)) {
           return;
         }
   
-        if (this.options.preventDefault && !utils.isBadAndroid && !utils.preventDefaultException(e.target, this.options.preventDefaultException)) {
+        if (this.options.preventDefault && !isBadAndroid && !preventDefaultExceptionFn(e.target, this.options.preventDefaultException)) {
           e.preventDefault();
         }
   
-        var point = e.touches ? e.touches[0] : e,
-          pos;
+        var point = e.touches ? e.touches[0] : e, pos;
   
-        this.initiated = utils.eventType[e.type];
+        this.initiated = supportEventType[e.type];
         this.moved = false;
         this.distX = 0;
         this.distY = 0;
@@ -4821,7 +4804,7 @@
   
         this._transitionTime();
   
-        this.startTime = lang.now();
+        this.startTime = nowFn();
   
         if (this.options.useTransition && this.isInTransition) {
           this.isInTransition = false;
@@ -4844,7 +4827,7 @@
       },
   
       _move: function(e) {
-        if (!this.enabled || utils.eventType[e.type] !== this.initiated) {
+        if (!this.enabled || supportEventType[e.type] !== this.initiated) {
           return;
         }
   
@@ -4853,11 +4836,8 @@
         }
   
         var point = e.touches ? e.touches[0] : e,
-          deltaX = point.pageX - this.pointX,
-          deltaY = point.pageY - this.pointY,
-          timestamp = lang.now(),
-          newX, newY,
-          absDistX, absDistY;
+          deltaX = point.pageX - this.pointX, deltaY = point.pageY - this.pointY,
+          timestamp = nowFn(), newX, newY, absDistX, absDistY;
   
         this.pointX = point.pageX;
         this.pointY = point.pageY;
@@ -4928,57 +4908,48 @@
   
         this._translate(newX, newY);
   
-        /* REPLACE START: _move */
-  
         if (timestamp - this.startTime > 300) {
           this.startTime = timestamp;
           this.startX = this.x;
           this.startY = this.y;
         }
   
-        /* REPLACE END: _move */
-  
       },
   
       _end: function(e) {
-        if (!this.enabled || utils.eventType[e.type] !== this.initiated) {
+        if (!this.enabled || supportEventType[e.type] !== this.initiated) {
           return;
         }
   
-        if (this.options.preventDefault && !utils.preventDefaultException(e.target, this.options.preventDefaultException)) {
+        if (this.options.preventDefault && !preventDefaultExceptionFn(e.target, this.options.preventDefaultException)) {
           e.preventDefault();
         }
   
-        var point = e.changedTouches ? e.changedTouches[0] : e,
-          momentumX,
-          momentumY,
-          duration = lang.now() - this.startTime,
-          newX = Math.round(this.x),
-          newY = Math.round(this.y),
-          distanceX = Math.abs(newX - this.startX),
-          distanceY = Math.abs(newY - this.startY),
-          time = 0,
-          easing = '';
+        var momentumX, momentumY,
+          duration = nowFn() - this.startTime,
+          newX = Math.round(this.x), newY = Math.round(this.y),
+          distanceX = Math.abs(newX - this.startX), distanceY = Math.abs(newY - this.startY),
+          time = 0, easing = '';
   
         this.isInTransition = 0;
         this.initiated = 0;
-        this.endTime = lang.now();
+        this.endTime = nowFn();
   
         // reset if we are outside of the boundaries
         if (this.resetPosition(this.options.bounceTime)) {
           return;
         }
   
-        this.scrollTo(newX, newY); // ensures that the last position is rounded
+        this.scrollTo(newX, newY); // ensures self the last position is rounded
   
         // we scrolled less than 10 pixels
         if (!this.moved) {
           if (this.options.tap) {
-            utils.tap(e, this.options.tap);
+            doTapEvent(e, this.options.tap);
           }
   
           if (this.options.click) {
-            utils.click(e);
+            doClickEvent(e);
           }
   
           this._execEvent('scrollCancel');
@@ -4992,11 +4963,11 @@
   
         // start momentum animation if needed
         if (this.options.momentum && duration < 300) {
-          momentumX = this.hasHorizontalScroll ? utils.momentum(this.x, this.startX, duration, this.maxScrollX, this.options.bounce ? this.wrapperWidth : 0, this.options.deceleration) : {
+          momentumX = this.hasHorizontalScroll ? momentumFn(this.x, this.startX, duration, this.maxScrollX, this.options.bounce ? this.wrapperWidth : 0, this.options.deceleration) : {
             destination: newX,
             duration: 0
           };
-          momentumY = this.hasVerticalScroll ? utils.momentum(this.y, this.startY, duration, this.maxScrollY, this.options.bounce ? this.wrapperHeight : 0, this.options.deceleration) : {
+          momentumY = this.hasVerticalScroll ? momentumFn(this.y, this.startY, duration, this.maxScrollY, this.options.bounce ? this.wrapperHeight : 0, this.options.deceleration) : {
             destination: newY,
             duration: 0
           };
@@ -5006,12 +4977,10 @@
           this.isInTransition = 1;
         }
   
-        // INSERT POINT: _end
-  
         if (newX != this.x || newY != this.y) {
           // change easing function when scroller goes out of the boundaries
           if (newX > 0 || newX < this.maxScrollX || newY > 0 || newY < this.maxScrollY) {
-            easing = utils.ease.quadratic;
+            easing = easeEffect.quadratic;
           }
   
           this.scrollTo(newX, newY, time, easing);
@@ -5022,18 +4991,17 @@
       },
   
       _resize: function() {
-        var that = this;
+        var self = this;
   
         clearTimeout(this.resizeTimeout);
   
         this.resizeTimeout = setTimeout(function() {
-          that.refresh();
+          self.refresh();
         }, this.options.resizePolling);
       },
   
       resetPosition: function(time) {
-        var x = this.x,
-          y = this.y;
+        var x = this.x, y = this.y;
   
         time = time || 0;
   
@@ -5067,20 +5035,15 @@
       },
   
       refresh: function() {
-        var rf = this.wrapper.offsetHeight; // Force reflow
   
         this.wrapperWidth = this.wrapper.clientWidth;
         this.wrapperHeight = this.wrapper.clientHeight;
-  
-        /* REPLACE START: refresh */
   
         this.scrollerWidth = this.scroller.offsetWidth;
         this.scrollerHeight = this.scroller.offsetHeight;
   
         this.maxScrollX = this.wrapperWidth - this.scrollerWidth;
         this.maxScrollY = this.wrapperHeight - this.scrollerHeight;
-  
-        /* REPLACE END: refresh */
   
         this.hasHorizontalScroll = this.options.scrollX && this.maxScrollX < 0;
         this.hasVerticalScroll = this.options.scrollY && this.maxScrollY < 0;
@@ -5099,13 +5062,11 @@
         this.directionX = 0;
         this.directionY = 0;
   
-        this.wrapperOffset = utils.offset(this.wrapper);
+        this.wrapperOffset = offsetFn(this.wrapper);
   
         this._execEvent('refresh');
   
         this.resetPosition();
-  
-        // INSERT POINT: _refresh
   
       },
   
@@ -5134,8 +5095,7 @@
           return;
         }
   
-        var i = 0,
-          l = this._events[type].length;
+        var i = 0, l = this._events[type].length;
   
         if (!l) {
           return;
@@ -5155,7 +5115,7 @@
       },
   
       scrollTo: function(x, y, time, easing) {
-        easing = easing || utils.ease.circular;
+        easing = easing || easeEffect.circular;
   
         this.isInTransition = this.options.useTransition && time > 0;
   
@@ -5175,7 +5135,7 @@
           return;
         }
   
-        var pos = utils.offset(el);
+        var pos = offsetFn(el);
   
         pos.left -= this.wrapperOffset.left;
         pos.top -= this.wrapperOffset.top;
@@ -5202,31 +5162,22 @@
       _transitionTime: function(time) {
         time = time || 0;
   
-        this.scrollerStyle[utils.style.transitionDuration] = time + 'ms';
+        this.scrollerStyle[transStyle.transitionDuration] = time + 'ms';
   
-        if (!time && utils.isBadAndroid) {
-          this.scrollerStyle[utils.style.transitionDuration] = '0.001s';
+        if (!time && isBadAndroid) {
+          this.scrollerStyle[transStyle.transitionDuration] = '0.001s';
         }
-  
-        // INSERT POINT: _transitionTime
   
       },
   
       _transitionTimingFunction: function(easing) {
-        this.scrollerStyle[utils.style.transitionTimingFunction] = easing;
-  
-        // INSERT POINT: _transitionTimingFunction
-  
+        this.scrollerStyle[transStyle.transitionTimingFunction] = easing;
       },
   
       _translate: function(x, y) {
         if (this.options.useTransform) {
   
-          /* REPLACE START: _translate */
-  
-          this.scrollerStyle[utils.style.transform] = 'translate(' + x + 'px,' + y + 'px)' + this.translateZ;
-  
-          /* REPLACE END: _translate */
+          this.scrollerStyle[transStyle.transform] = 'translate(' + x + 'px,' + y + 'px)' + this.translateZ;
   
         } else {
           x = Math.round(x);
@@ -5238,13 +5189,10 @@
         this.x = x;
         this.y = y;
   
-        // INSERT POINT: _translate
-  
       },
   
       _initEvents: function(remove) {
-        var eventType = remove ? utils.removeEvent : utils.addEvent,
-          target = this.options.bindToWrapper ? this.wrapper : window;
+        var eventType = remove ? removeEventFn : addEventFn, target = this.options.bindToWrapper ? this.wrapper : window;
   
         eventType(window, 'orientationchange', this);
         eventType(window, 'resize', this);
@@ -5260,14 +5208,14 @@
           eventType(target, 'mouseup', this);
         }
   
-        if (utils.hasPointer && !this.options.disablePointer) {
-          eventType(this.wrapper, utils.prefixPointerEvent('pointerdown'), this);
-          eventType(target, utils.prefixPointerEvent('pointermove'), this);
-          eventType(target, utils.prefixPointerEvent('pointercancel'), this);
-          eventType(target, utils.prefixPointerEvent('pointerup'), this);
+        if (Support.hasPointer && !this.options.disablePointer) {
+          eventType(this.wrapper, prefixPointerEventFn('pointerdown'), this);
+          eventType(target, prefixPointerEventFn('pointermove'), this);
+          eventType(target, prefixPointerEventFn('pointercancel'), this);
+          eventType(target, prefixPointerEventFn('pointerup'), this);
         }
   
-        if (utils.hasTouch && !this.options.disableTouch) {
+        if (Support.hasTouch && !this.options.disableTouch) {
           eventType(this.wrapper, 'touchstart', this);
           eventType(target, 'touchmove', this);
           eventType(target, 'touchcancel', this);
@@ -5281,11 +5229,10 @@
       },
   
       getComputedPosition: function() {
-        var matrix = window.getComputedStyle(this.scroller, null),
-          x, y;
+        var matrix = window.getComputedStyle(this.scroller, null), x, y;
   
         if (this.options.useTransform) {
-          matrix = matrix[utils.style.transform].split(')')[0].split(', ');
+          matrix = matrix[transStyle.transform].split(')')[0].split(', ');
           x = +(matrix[12] || matrix[4]);
           y = +(matrix[13] || matrix[5]);
         } else {
@@ -5300,23 +5247,17 @@
       },
   
       _animate: function(destX, destY, duration, easingFn) {
-        var that = this,
-          startX = this.x,
-          startY = this.y,
-          startTime = lang.now(),
-          destTime = startTime + duration;
+        var self = this, startX = this.x, startY = this.y, startTime = nowFn(), destTime = startTime + duration;
   
         function step() {
-          var now = lang.now(),
-            newX, newY,
-            easing;
+          var now = nowFn(), newX, newY, easing;
   
           if (now >= destTime) {
-            that.isAnimating = false;
-            that._translate(destX, destY);
+            self.isAnimating = false;
+            self._translate(destX, destY);
   
-            if (!that.resetPosition(that.options.bounceTime)) {
-              that._execEvent('scrollEnd');
+            if (!self.resetPosition(self.options.bounceTime)) {
+              self._execEvent('scrollEnd');
             }
   
             return;
@@ -5326,10 +5267,10 @@
           easing = easingFn(now);
           newX = (destX - startX) * easing + startX;
           newY = (destY - startY) * easing + startY;
-          that._translate(newX, newY);
+          self._translate(newX, newY);
   
-          if (that.isAnimating) {
-            lang.requestAnimationFrame(step);
+          if (self.isAnimating) {
+            requestAnimationFrame(step);
           }
         }
   

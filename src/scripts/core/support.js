@@ -1,6 +1,32 @@
 define('mob/support', function(require, exports, module) {
 
+  var elementStyle = document.createElement('div').style;
+  var vendorCSS = (function() {
+    var vendors = ['t', 'webkitT', 'MozT', 'msT', 'OT'], transform, i = 0, l = vendors.length;
+
+    for (; i < l; i++) {
+      transform = vendors[i] + 'ransform';
+      if (transform in elementStyle) {
+        return vendors[i].substr(0, vendors[i].length - 1);
+      }
+    }
+
+    return false;
+  })();
+
+  var prefixStyle = function(style) {
+    if (vendorCSS === false) {
+      return false;
+    }
+    if (vendorCSS === '') {
+      return style;
+    }
+    return vendorCSS + style.charAt(0).toUpperCase() + style.substr(1);
+  };
+
   var Support = {
+
+    getPrefixStyle: prefixStyle,
 
     addEventListener: !!window.addEventListener,
 
@@ -40,7 +66,17 @@ define('mob/support', function(require, exports, module) {
       return result;
     },
 
-    animationEvents: (typeof window.WebKitAnimationEvent !== 'undefined')
+    animationEvents: (typeof window.WebKitAnimationEvent !== 'undefined'),
+
+    hasTransform: prefixStyle('transform') !== false,
+
+    hasPerspective: prefixStyle('perspective') in elementStyle,
+
+    hasTouch: 'ontouchstart' in window,
+
+    hasPointer: window.PointerEvent || window.MSPointerEvent,
+
+    hasTransition: prefixStyle('transition') in elementStyle
 
   };
 
