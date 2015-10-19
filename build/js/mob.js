@@ -3789,12 +3789,11 @@
     var lang = require('mob/lang');
     var $ = require('mob/jqlite');
   
-    var $body = $('body');
-  
     var IOS = 'ios';
     var ANDROID = 'android';
     var WINDOWS_PHONE = 'windowsphone';
     var requestAnimationFrame = lang.requestAnimationFrame;
+    var $body = $('body');
   
     var Platform = {
   
@@ -3925,8 +3924,8 @@
       setPlatform: function(n) {
         if (typeof n != 'undefined' && n !== null && n.length) {
           platformName = n.toLowerCase();
-        } else if (lang.getParameterByName('ionicplatform')) {
-          platformName = lang.getParameterByName('ionicplatform');
+        } else if (lang.getParameterByName('mobplatform')) {
+          platformName = lang.getParameterByName('mobplatform');
         } else if (Platform.ua.indexOf('Android') > 0) {
           platformName = ANDROID;
         } else if (/iPhone|iPad|iPod/.test(Platform.ua)) {
@@ -5668,7 +5667,6 @@
     }
   
     function viewportUpdate() {
-      // unit tests in viewport.unit.js
   
       var initWidth = viewportProperties.width;
       var initHeight = viewportProperties.height;
@@ -5761,6 +5759,7 @@
       viewportTag.content = props.join(', ');
     }
   
+  
     var Viewport = {
   
       orientation: function() {
@@ -5778,7 +5777,10 @@
             setTimeout(viewportUpdate, 1000);
           }, false);
         });
-      }
+      },
+  
+      _viewportLoadTag: viewportLoadTag
+  
     };
   
     module.exports = Viewport;

@@ -29,7 +29,6 @@ define('mob/viewport', function(require, exports, module) {
   }
 
   function viewportUpdate() {
-    // unit tests in viewport.unit.js
 
     var initWidth = viewportProperties.width;
     var initHeight = viewportProperties.height;
@@ -122,6 +121,7 @@ define('mob/viewport', function(require, exports, module) {
     viewportTag.content = props.join(', ');
   }
 
+
   var Viewport = {
 
     orientation: function() {
@@ -139,7 +139,10 @@ define('mob/viewport', function(require, exports, module) {
           setTimeout(viewportUpdate, 1000);
         }, false);
       });
-    }
+    },
+
+    _viewportLoadTag: viewportLoadTag
+
   };
 
   module.exports = Viewport;
