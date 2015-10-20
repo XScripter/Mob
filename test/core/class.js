@@ -4,54 +4,55 @@
 
   QUnit.test("when creating an object", function(assert) {
 
-    var ClassObj = Mob.Class.extend({
+    var Object = Mob.Class.extend({
 
       modelEvents: {
         'bar': 'onBar'
       },
 
       initialize: function(options) {
-        this.bindEntityEvents(options.dataObj, this.modelEvents);
+        this.bindEntityEvents(options.model, this.modelEvents);
       },
 
       onBar: function() {}
     });
 
-    var dataObj = {};
-
-    Mob.extend(dataObj, Mob.Events);
+    var model = Mob.extend({}, Mob.Events);
 
     var options = {
-      dataObj: dataObj
+      model: model
     };
 
-    var object = new ClassObj(options);
+    var object = new Object(options);
 
-    object.on('foo', function() {
-      assert.ok(true);
-    });
+    var fooHandler = sinon.spy();
+    object.on('foo', fooHandler);
 
-    dataObj.on('bar', function() {
-      assert.ok(true);
-    });
+    var barHandler = sinon.spy();
+    model.on('bar', barHandler);
 
     object.trigger('foo', options);
-    dataObj.trigger('bar', options);
+    model.trigger('bar', options);
 
+    assert.ok(fooHandler.calledWith(options));
+    assert.ok(barHandler.calledWith(options));
     assert.deepEqual(object.options, options);
+
   });
 
   QUnit.test("when destroying a object", function(assert) {
 
     var object = new Mob.Class();
 
-    var beforeDestroyHandler = function() {
-      assert.ok(true);
-    };
+    sinon.spy(object, 'destroy');
+    var beforeDestroyHandler = sinon.spy();
     object.on('before:destroy', beforeDestroyHandler);
-    var destroyed = object.destroy();
+    var returned = object.destroy();
 
-    assert.deepEqual(destroyed, object);
+    assert.ok(beforeDestroyHandler.calledOnce);
+
+    assert.deepEqual(returned, object);
+
   });
 
 })();
