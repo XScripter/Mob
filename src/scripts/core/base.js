@@ -61,7 +61,7 @@ define('mob/base', function(require, exports, module) {
     });
   }
 
-  exports.isNodeAttached = function(el) {
+  var isNodeAttached = exports.isNodeAttached = function(el) {
     return $.contains(document.documentElement, el);
   };
 
@@ -159,6 +159,32 @@ define('mob/base', function(require, exports, module) {
 
   exports.proxyUnbindEntityEvents = function(entity, bindings) {
     return unbindEntityEvents(this, entity, bindings);
+  };
+
+  exports.monitorDOMRefresh = function(view) {
+
+    function handleShow() {
+      view._isShown = true;
+      triggerDOMRefresh();
+    }
+
+    function handleRender() {
+      view._isRendered = true;
+      triggerDOMRefresh();
+    }
+
+    function triggerDOMRefresh() {
+      if (view._isShown && view._isRendered && isNodeAttached(view.el)) {
+        if (lang.isFunction(view.triggerMethod)) {
+          view.triggerMethod('dom:refresh');
+        }
+      }
+    }
+
+    view.on({
+      show: handleShow,
+      render: handleRender
+    });
   };
 
 });
