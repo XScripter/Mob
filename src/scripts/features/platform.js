@@ -3,10 +3,12 @@ define('mob/platform', function(require, exports, module) {
   var lang = require('mob/lang');
   var $ = require('mob/jqlite');
 
+  var requestAnimationFrameFn = lang.requestAnimationFrame;
+  var getParameterByNameFn = lang.getParameterByName;
+
   var IOS = 'ios';
   var ANDROID = 'android';
   var WINDOWS_PHONE = 'windowsphone';
-  var requestAnimationFrame = lang.requestAnimationFrame;
   var $body = $('body');
 
   var platformName = null,
@@ -24,7 +26,7 @@ define('mob/platform', function(require, exports, module) {
     }
     readyCallbacks = [];
 
-    requestAnimationFrame(function() {
+    requestAnimationFrameFn(function() {
       $body.addClass('platform-ready');
     });
   }
@@ -66,7 +68,7 @@ define('mob/platform', function(require, exports, module) {
     detect: function() {
       Platform._checkPlatforms();
 
-      requestAnimationFrame(function() {
+      requestAnimationFrameFn(function() {
         for (var i = 0; i < Platform.platforms.length; i++) {
           $body.addClass('platform-' + Platform.platforms[i]);
         }
@@ -76,7 +78,7 @@ define('mob/platform', function(require, exports, module) {
     setGrade: function(grade) {
       var oldGrade = Platform.grade;
       Platform.grade = grade;
-      requestAnimationFrame(function() {
+      requestAnimationFrameFn(function() {
         if (oldGrade) {
           $body.removeClass('grade-' + oldGrade);
         }
@@ -170,8 +172,8 @@ define('mob/platform', function(require, exports, module) {
     setPlatform: function(n) {
       if (typeof n != 'undefined' && n !== null && n.length) {
         platformName = n.toLowerCase();
-      } else if (lang.getParameterByName('mobplatform')) {
-        platformName = lang.getParameterByName('mobplatform');
+      } else if (getParameterByNameFn('mobplatform')) {
+        platformName = getParameterByNameFn('mobplatform');
       } else if (Platform.ua.indexOf('Android') > 0) {
         platformName = ANDROID;
       } else if (/iPhone|iPad|iPod/.test(Platform.ua)) {
@@ -246,7 +248,7 @@ define('mob/platform', function(require, exports, module) {
       Platform._showStatusBar = val;
       Platform.ready(function() {
         // run this only when or if the platform (cordova) is ready
-        requestAnimationFrame(function() {
+        requestAnimationFrameFn(function() {
           if (Platform._showStatusBar) {
             // they do not want it to be full screen
             window.StatusBar && window.StatusBar.show();
@@ -267,7 +269,7 @@ define('mob/platform', function(require, exports, module) {
       // add/remove the fullscreen classname to the body
       $(document).ready(function() {
         // run this only when or if the DOM is ready
-        requestAnimationFrame(function() {
+        requestAnimationFrameFn(function() {
           if (Platform.isFullScreen) {
             $body.addClass('fullscreen');
           } else {

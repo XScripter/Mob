@@ -3,6 +3,10 @@ define('mob/screenComponent', function(require, exports, module) {
   var lang = require('mob/lang');
   var $ = require('mob/jqlite');
   var Error = require('mob/error');
+  var Logger = require('mob/logger');
+
+  var eachFn = lang.each;
+  var isUndefinedFn = lang.isUndefined;
 
   var ScreenComponent = {};
 
@@ -26,7 +30,7 @@ define('mob/screenComponent', function(require, exports, module) {
     // 当 render 方式为异步调用的时候，可以手动调用 `renderComponents` 初始化组件
     view.renderComponents = function() {
       if (!lang.isEmpty(this.components)) {
-        lang.info('Components have already rendered!');
+        Logger.info('Components have already rendered!');
       } else {
         postrender.call(this);
       }
@@ -42,7 +46,7 @@ define('mob/screenComponent', function(require, exports, module) {
 
       if (this.components) {
 
-        lang.each(this.components, function(component) {
+        eachFn(this.components, function(component) {
           component.remove();
         });
 
@@ -52,7 +56,7 @@ define('mob/screenComponent', function(require, exports, module) {
 
     view._createComponent = function(componentName, placeHolderDiv) {
       var componentCreator = this.componentCreators[componentName];
-      if (lang.isUndefined(componentCreator)) {
+      if (isUndefinedFn(componentCreator)) {
         throw new Error('Can not find component creator for component named: ' + componentName);
       }
 
@@ -65,7 +69,7 @@ define('mob/screenComponent', function(require, exports, module) {
       this.components = {};
     }
 
-    lang.each(this.components, function(component) {
+    eachFn(this.components, function(component) {
       component.$el.detach();
     });
   }
@@ -82,7 +86,7 @@ define('mob/screenComponent', function(require, exports, module) {
       var componentName = $this.attr('mo-component');
       var newComponent;
 
-      if (lang.isUndefined(self.components[componentName])) {
+      if (isUndefinedFn(self.components[componentName])) {
         newComponent = self._createComponent(componentName, $this);
         if (newComponent === null) {
           return;
@@ -97,7 +101,7 @@ define('mob/screenComponent', function(require, exports, module) {
 
     // Now that all components have been created, render them one at a time, in the
     // order they occur in the DOM.
-    lang.each(this.components, function(component) {
+    eachFn(this.components, function(component) {
       component.render();
     });
 

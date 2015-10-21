@@ -3,6 +3,9 @@ define('mob/template', function(require, exports, module) {
   var lang = require('mob/lang');
   var Error = require('mob/error');
 
+  var defaultsFn = lang.defaults;
+  var isFunctionFn = lang.isFunction;
+
   var Template = {};
   var templateHelpers = {
     insertComponent: function(componentName) {
@@ -42,11 +45,11 @@ define('mob/template', function(require, exports, module) {
   };
 
   Template.registerHelper = function(name, helper) {
-    if (lang.isFunction(templateHelpers[name])) {
+    if (isFunctionFn(templateHelpers[name])) {
       throw new Error('Helper "' + name + '" already defined.');
     }
 
-    if (!lang.isFunction(helper)) {
+    if (!isFunctionFn(helper)) {
       throw new Error('Typeof helper "' + helper + '" is not a function.');
     }
 
@@ -63,7 +66,7 @@ define('mob/template', function(require, exports, module) {
       settings = oldSettings;
     }
 
-    settings = lang.defaults({}, settings, Template._settings);
+    settings = defaultsFn({}, settings, Template._settings);
 
     // Combine delimiters into one regular expression via alternation.
     var matcher = RegExp([
@@ -121,14 +124,14 @@ define('mob/template', function(require, exports, module) {
   Template.compile = function(text, data, settings) {
 
     if (data) {
-      lang.defaults(data, templateHelpers);
+      defaultsFn(data, templateHelpers);
       return template.apply(this, arguments);
     }
 
     var originalTemplate = template.apply(this, arguments);
 
     var wrappedTemplate = function(data) {
-      data = lang.defaults({}, data, templateHelpers);
+      data = defaultsFn({}, data, templateHelpers);
       return originalTemplate.call(this, data);
     };
 

@@ -7,6 +7,9 @@ define('mob/scroller', function(require, exports, module) {
 
   var requestAnimationFrame = lang.requestAnimationFrame;
   var nowFn = lang.now;
+  var isStringFn = lang.isString;
+  var isUndefinedFn = lang.isUndefined;
+
   var prefixStyle = Support.getPrefixStyle;
 
   var addEventFn = function(el, type, fn, capture) {
@@ -172,7 +175,7 @@ define('mob/scroller', function(require, exports, module) {
   };
 
   function Scroller(el, options) {
-    this.wrapper = lang.isString(el) ? document.querySelector(el) : el;
+    this.wrapper = isStringFn(el) ? document.querySelector(el) : el;
     this.scroller = this.wrapper.children[0];
     this.scrollerStyle = this.scroller.style; // cache style for better performance
 
@@ -219,9 +222,9 @@ define('mob/scroller', function(require, exports, module) {
     this.options.freeScroll = this.options.freeScroll && !this.options.eventPassthrough;
     this.options.directionLockThreshold = this.options.eventPassthrough ? 0 : this.options.directionLockThreshold;
 
-    this.options.bounceEasing = lang.isString(this.options.bounceEasing) ? easeEffect[this.options.bounceEasing] || easeEffect.circular : this.options.bounceEasing;
+    this.options.bounceEasing = isStringFn(this.options.bounceEasing) ? easeEffect[this.options.bounceEasing] || easeEffect.circular : this.options.bounceEasing;
 
-    this.options.resizePolling = lang.isUndefined(this.options.resizePolling) ? 60 : this.options.resizePolling;
+    this.options.resizePolling = isUndefinedFn(this.options.resizePolling) ? 60 : this.options.resizePolling;
 
     if (this.options.tap === true) {
       this.options.tap = 'tap';
@@ -818,7 +821,7 @@ define('mob/scroller', function(require, exports, module) {
 
   Scroller.createScroller = function(el, options) {
 
-    if (lang.isUndefined(el)) {
+    if (isUndefinedFn(el)) {
       throw Error('`el` is empty.');
     }
 

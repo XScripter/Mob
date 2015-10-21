@@ -4,10 +4,14 @@ define('mob/base', function(require, exports, module) {
   var $ = require('mob/jqlite');
   var Error = require('mob/error');
 
+  var eachFn = lang.each;
+  var isFunctionFn = lang.isFunction;
+  var restFn = lang.rest;
+
   function bindFromStrings(target, entity, evt, methods) {
     var methodNames = methods.split(/\s+/);
 
-    lang.each(methodNames, function(methodName) {
+    eachFn(methodNames, function(methodName) {
 
       var method = target[methodName];
       if (!method) {
@@ -25,7 +29,7 @@ define('mob/base', function(require, exports, module) {
   function unbindFromStrings(target, entity, evt, methods) {
     var methodNames = methods.split(/\s+/);
 
-    lang.each(methodNames, function(methodName) {
+    eachFn(methodNames, function(methodName) {
       var method = target[methodName];
       target.stopListening(entity, evt, method);
     });
@@ -48,11 +52,11 @@ define('mob/base', function(require, exports, module) {
     bindings = _getValue(bindings, target);
 
     // iterate the bindings and bind them
-    lang.each(bindings, function(methods, evt) {
+    eachFn(bindings, function(methods, evt) {
 
       // allow for a function as the handler,
       // or a list of event names as a string
-      if (lang.isFunction(methods)) {
+      if (isFunctionFn(methods)) {
         functionCallback(target, entity, evt, methods);
       } else {
         stringCallback(target, entity, evt, methods);
@@ -86,15 +90,15 @@ define('mob/base', function(require, exports, module) {
       var method = context[methodName];
       var result;
 
-      if (lang.isFunction(method)) {
+      if (isFunctionFn(method)) {
         // pass all args, except the event name
-        result = method.apply(context, noEventArg ? lang.rest(args) : args);
+        result = method.apply(context, noEventArg ? restFn(args) : args);
       }
 
       // trigger the event, if a trigger method exists
-      if (lang.isFunction(context.trigger)) {
+      if (isFunctionFn(context.trigger)) {
         if (noEventArg + args.length > 1) {
-          context.trigger.apply(context, noEventArg ? args : [event].concat(lang.rest(args, 0)));
+          context.trigger.apply(context, noEventArg ? args : [event].concat(restFn(args, 0)));
         } else {
           context.trigger(event);
         }
@@ -109,9 +113,9 @@ define('mob/base', function(require, exports, module) {
   };
 
   var triggerMethodOn = exports.triggerMethodOn = function(context) {
-    var fnc = lang.isFunction(context.triggerMethod) ? context.triggerMethod : triggerMethod;
+    var fnc = isFunctionFn(context.triggerMethod) ? context.triggerMethod : triggerMethod;
 
-    return fnc.apply(context, lang.rest(arguments));
+    return fnc.apply(context, restFn(arguments));
   };
 
   // Merge `keys` from `options` onto `this`
@@ -141,7 +145,7 @@ define('mob/base', function(require, exports, module) {
   // otherwise just return the value. If the value is
   // undefined return a default value
   var _getValue = exports._getValue = function(value, context, params) {
-    if (lang.isFunction(value)) {
+    if (isFunctionFn(value)) {
       value = params ? value.apply(context, params) : value.call(context);
     }
     return value;
@@ -151,7 +155,7 @@ define('mob/base', function(require, exports, module) {
     if (!(object && object[prop])) {
       return null;
     }
-    return lang.isFunction(object[prop]) ? object[prop]() : object[prop];
+    return isFunctionFn(object[prop]) ? object[prop]() : object[prop];
   };
 
   var bindEntityEvents = exports.bindEntityEvents = function(target, entity, bindings) {

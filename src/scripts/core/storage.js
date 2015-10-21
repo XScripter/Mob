@@ -2,6 +2,11 @@ define('mob/storage', function(require, exports, module) {
 
   var lang = require('mob/lang');
 
+  var extendFn = lang.extend;
+  var indexOfFn = lang.indexOf;
+  var isFunctionFn = lang.isFunction;
+  var isUndefinedFn = lang.isUndefined;
+
   var Storage = function(options) {
 
     this.options = options || {};
@@ -19,10 +24,10 @@ define('mob/storage', function(require, exports, module) {
     'cookie': 'Cookie'
   };
 
-  lang.extend(Storage.prototype, {
+  extendFn(Storage.prototype, {
 
     isAvailable: function() {
-      if (lang.isFunction(this.storage.isAvailable)) {
+      if (isFunctionFn(this.storage.isAvailable)) {
         return this.storage.isAvailable();
       } else {
         return true;
@@ -91,14 +96,14 @@ define('mob/storage', function(require, exports, module) {
 
     _addKey: function(key) {
       var keys = this.keys();
-      if (lang.indexOf(keys, key) === -1) {
+      if (indexOfFn(keys, key) === -1) {
         keys.push(key);
       }
       this.set(this.meta_key, keys);
     },
     _removeKey: function(key) {
       var keys = this.keys();
-      var index = lang.indexOf(keys, key);
+      var index = indexOfFn(keys, key);
       if (index !== -1) {
         keys.splice(index, 1);
       }
@@ -123,7 +128,7 @@ define('mob/storage', function(require, exports, module) {
     this.expires_in = this.options.expires_in || (14 * 24 * 60 * 60);
   };
 
-  lang.extend(Storage.Cookie.prototype, {
+  extendFn(Storage.Cookie.prototype, {
     isAvailable: function() {
       return ('cookie' in document) && (window.location.protocol != 'file:');
     },
@@ -166,7 +171,7 @@ define('mob/storage', function(require, exports, module) {
     this.name = name;
   };
 
-  lang.extend(Storage.LocalStorage.prototype, {
+  extendFn(Storage.LocalStorage.prototype, {
 
     isAvailable: function() {
       return ('localStorage' in window) && (window.location.protocol != 'file:');
@@ -196,12 +201,12 @@ define('mob/storage', function(require, exports, module) {
     this.store = Storage.Memory.store[this.name];
   };
 
-  lang.extend(Storage.Memory.prototype, {
+  extendFn(Storage.Memory.prototype, {
     isAvailable: function() {
       return true;
     },
     exists: function(key) {
-      return !lang.isUndefined(this.store[key]);
+      return !isUndefinedFn(this.store[key]);
     },
     set: function(key, value) {
       return this.store[key] = value;
@@ -218,11 +223,11 @@ define('mob/storage', function(require, exports, module) {
     this.name = name;
   };
 
-  lang.extend(Storage.SessionStorage.prototype, {
+  extendFn(Storage.SessionStorage.prototype, {
     isAvailable: function() {
       return ('sessionStorage' in window) &&
         (window.location.protocol != 'file:') &&
-        lang.isFunction(window.sessionStorage.setItem);
+        isFunctionFn(window.sessionStorage.setItem);
     },
     exists: function(key) {
       return (this.get(key) != null);
@@ -232,7 +237,7 @@ define('mob/storage', function(require, exports, module) {
     },
     get: function(key) {
       var value = window.sessionStorage.getItem(this._key(key));
-      if (value && !lang.isUndefined(value.value)) {
+      if (value && !isUndefinedFn(value.value)) {
         value = value.value;
       }
       return value;

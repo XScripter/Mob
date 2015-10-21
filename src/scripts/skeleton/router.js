@@ -5,7 +5,9 @@ define('mob/router', function(require, exports, module) {
   var $ = require('mob/jqlite');
   var Error = require('mob/error');
 
-  var isUndefined = lang.isUndefined;
+  var isUndefinedFn = lang.isUndefined;
+  var bindFn = lang.bind;
+  var isFunctionFn = lang.isFunction;
 
   var hashchangeEvtName = 'hashchange.router';
 
@@ -26,9 +28,9 @@ define('mob/router', function(require, exports, module) {
   };
 
   RouterRequest.prototype.get = function(key, defaultValue) {
-    return (this.params && !isUndefined(this.params[key])) ?
-      this.params[key] : (this.query && !isUndefined(this.query[key])) ?
-      this.query[key] : !isUndefined(defaultValue) ? defaultValue : undefined;
+    return (this.params && !isUndefinedFn(this.params[key])) ?
+      this.params[key] : (this.query && !isUndefinedFn(this.query[key])) ?
+      this.query[key] : !isUndefinedFn(defaultValue) ? defaultValue : undefined;
   };
 
   var Router = function(options) {
@@ -50,7 +52,7 @@ define('mob/router', function(require, exports, module) {
     };
     this._paused = false;
 
-    var hasChangeHandler = lang.bind(this._onHashChange, this);
+    var hasChangeHandler = bindFn(this._onHashChange, this);
 
     $(window).unbind(hashchangeEvtName).bind(hashchangeEvtName, hasChangeHandler);
   };
@@ -68,7 +70,7 @@ define('mob/router', function(require, exports, module) {
   };
 
   Router.prototype._throwsRouteError = function(httpCode, err, url) {
-    if (lang.isFunction(this._errors['_' + httpCode])) {
+    if (isFunctionFn(this._errors['_' + httpCode])) {
       this._errors['_' + httpCode](err, url, httpCode);
     } else {
       this._errors._(err, url, httpCode);
@@ -127,9 +129,9 @@ define('mob/router', function(require, exports, module) {
 
     var hasNext = (matchedIndexes.length !== 0);
 
-    var next = lang.bind(function(uO, u, mI, hasNext) {
+    var next = bindFn(function(uO, u, mI, hasNext) {
 
-      return lang.bind(function(hasNext, err, error_code) {
+      return bindFn(function(hasNext, err, error_code) {
         if (!hasNext && !err) {
           return this._throwsRouteError(500, 'Cannot call "next" without an error if request.hasNext is false', fragmentUrl);
         }
@@ -150,7 +152,7 @@ define('mob/router', function(require, exports, module) {
     if (befores.length > 0) {
       var nextBefore = befores.splice(0, 1);
       nextBefore = nextBefore[0];
-      next = lang.bind(function(err, error_code) {
+      next = bindFn(function(err, error_code) {
         if (err) {
           return this._throwsRouteError(error_code || 500, err, fragmentUrl);
         }
@@ -158,7 +160,7 @@ define('mob/router', function(require, exports, module) {
       }, this);
 
     } else {
-      next = lang.bind(function(err, error_code) {
+      next = bindFn(function(err, error_code) {
         if (err) {
           return this._throwsRouteError(error_code || 500, err, fragmentUrl);
         }
@@ -209,7 +211,7 @@ define('mob/router', function(require, exports, module) {
   };
 
   Router.prototype.play = function(triggerNow) {
-    triggerNow = isUndefined(triggerNow) ? false : triggerNow;
+    triggerNow = isUndefinedFn(triggerNow) ? false : triggerNow;
     this._paused = false;
     if (triggerNow) {
       this._route(this._extractFragment(window.location.href));
@@ -262,7 +264,7 @@ define('mob/router', function(require, exports, module) {
     if (lang.isNaN(httpCode)) {
       throw new Error('Invalid code for routes error handling');
     }
-    if (!lang.isFunction(callback)) {
+    if (!isFunctionFn(callback)) {
       throw new Error('Invalid callback for routes error handling');
     }
     httpCode = '_' + httpCode;

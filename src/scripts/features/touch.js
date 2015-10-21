@@ -4,6 +4,8 @@ define('mob/touch', function(require, exports, module) {
   var $ = require('mob/jqlite');
   var Platform = require('mob/platform');
 
+  var isUndefinedFn = lang.isUndefined;
+
   var deviceIsWindowsPhone = Platform.isWindowsPhone();
   var deviceIsAndroid = Platform.isAndroid() && !deviceIsWindowsPhone;
   var deviceIsIOS = Platform.isIOS() && !deviceIsWindowsPhone;
@@ -227,7 +229,7 @@ define('mob/touch', function(require, exports, module) {
 
   TouchEvent.prototype.findControl = function(labelElement) {
 
-    if (!lang.isUndefined(labelElement.control)) {
+    if (!isUndefinedFn(labelElement.control)) {
       return labelElement.control;
     }
 
@@ -383,7 +385,7 @@ define('mob/touch', function(require, exports, module) {
     var metaViewport;
     var chromeVersion;
 
-    if (lang.isUndefined(window.ontouchstart)) {
+    if (isUndefinedFn(window.ontouchstart)) {
       return true;
     }
 

@@ -7,6 +7,9 @@ define('mob/application', function(require, exports, module) {
   var ScreenManager = require('mob/screenManager');
   var Storage = require('mob/storage');
 
+  var extendFn = lang.extend;
+  var isFunctionFn = lang.isFunction;
+
   var Application = Class.extend({
 
     constructor: function(options) {
@@ -20,7 +23,7 @@ define('mob/application', function(require, exports, module) {
 
       this._initRouters(options);
 
-      lang.extend(this, options);
+      extendFn(this, options);
       Class.apply(this, arguments);
     },
 
@@ -29,7 +32,7 @@ define('mob/application', function(require, exports, module) {
     // to the app, and runs all of the initializer functions
     start: function(options) {
 
-      options = lang.extend({
+      options = extendFn({
         autoRunRouter: true
       }, options || {});
 
@@ -108,15 +111,15 @@ define('mob/application', function(require, exports, module) {
 
     _initRouters: function(options) {
 
-      var routers = lang.isFunction(this.routers) ? this.routers(options) : this.routers || {};
+      var routers = isFunctionFn(this.routers) ? this.routers(options) : this.routers || {};
 
       var optionRouters = base.getOption(options, 'routers');
 
-      if (lang.isFunction(optionRouters)) {
+      if (isFunctionFn(optionRouters)) {
         optionRouters = optionRouters.call(this, options);
       }
 
-      lang.extend(routers, optionRouters);
+      extendFn(routers, optionRouters);
 
       this.addRouters(routers);
 
@@ -126,7 +129,7 @@ define('mob/application', function(require, exports, module) {
     // Internal method to initialize the screens that have been defined in a
     // `screens` attribute on the application instance
     _initScreens: function(options) {
-      var screens = lang.isFunction(this.screens) ? this.screens(options) : this.screens || {};
+      var screens = isFunctionFn(this.screens) ? this.screens(options) : this.screens || {};
 
       this._initScreenManager();
 
@@ -134,12 +137,12 @@ define('mob/application', function(require, exports, module) {
       var optionScreens = base.getOption(options, 'screens');
 
       // Enable screen options to be a function
-      if (lang.isFunction(optionScreens)) {
+      if (isFunctionFn(optionScreens)) {
         optionScreens = optionScreens.call(this, options);
       }
 
       // Overwrite current screens with those passed in options
-      lang.extend(screens, optionScreens);
+      extendFn(screens, optionScreens);
 
       this.addScreens(screens);
 

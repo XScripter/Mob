@@ -3,7 +3,8 @@ define('mob/http', function(require, exports, module) {
   var lang = require('mob/lang');
   var Error = require('mob/error');
 
-  var isFunction = lang.isFunction;
+  var isFunctionFn = lang.isFunction;
+  var toArrayFn = lang.toArray;
 
   var makeErrorByStatus = function(statusCode, content) {
     var MAX_LENGTH = 500;
@@ -45,14 +46,14 @@ define('mob/http', function(require, exports, module) {
 
   HTTP.request = function(method, url, options, callback) {
 
-    if (!callback && lang.isFunction(options)) {
+    if (!callback && isFunctionFn(options)) {
       callback = options;
       options = null;
     }
 
     options = options || {};
 
-    if (!isFunction(callback)) {
+    if (!isFunctionFn(callback)) {
       throw new Error('Can not make a blocking HTTP call from the client; callback required.');
     }
 
@@ -186,19 +187,19 @@ define('mob/http', function(require, exports, module) {
   };
 
   HTTP.get = function( /* url, callOptions, asyncCallback */ ) {
-    return HTTP.request.apply(this, ['GET'].concat(lang.toArray(arguments)));
+    return HTTP.request.apply(this, ['GET'].concat(toArrayFn(arguments)));
   };
 
   HTTP.post = function( /* url, callOptions, asyncCallback */ ) {
-    return HTTP.request.apply(this, ['POST'].concat(lang.toArray(arguments)));
+    return HTTP.request.apply(this, ['POST'].concat(toArrayFn(arguments)));
   };
 
   HTTP.put = function( /* url, callOptions, asyncCallback */ ) {
-    return HTTP.request.apply(this, ['PUT'].concat(lang.toArray(arguments)));
+    return HTTP.request.apply(this, ['PUT'].concat(toArrayFn(arguments)));
   };
 
   HTTP.del = function( /* url, callOptions, asyncCallback */ ) {
-    return HTTP.request.apply(this, ['DELETE'].concat(lang.toArray(arguments)));
+    return HTTP.request.apply(this, ['DELETE'].concat(toArrayFn(arguments)));
   };
 
   module.exports = HTTP;

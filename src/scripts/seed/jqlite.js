@@ -1,9 +1,18 @@
 define('mob/jqlite', function(require, exports, module) {
 
   var lang = require('mob/lang');
+  var Logger = require('mob/logger');
+
+  var isUndefinedFn = lang.isUndefined;
+  var camelizeFn = lang.camelize;
+  var isFunctionFn = lang.isFunction;
+  var isStringFn = lang.isString;
+  var isPlainObjectFn = lang.isPlainObject;
+  var isObjectFn = lang.isObject;
+  var isArrayFn = lang.isArray;
+  var isDocumentFn = lang.isDocument;
 
   var undefined,
-    isUndefined = lang.isUndefined,
     $,
     jqlite = {},
     ArrayProto = Array.prototype,
@@ -173,7 +182,7 @@ define('mob/jqlite', function(require, exports, module) {
       nameOnly = maybeID || maybeClass ? selector.slice(1) : selector,
       isSimple = simpleSelectorRE.test(nameOnly);
 
-    return (lang.isDocument(element) && isSimple && maybeID) ?
+    return (isDocumentFn(element) && isSimple && maybeID) ?
       ((found = element.getElementById(nameOnly)) ? [found] : []) :
       (element.nodeType !== 1 && element.nodeType !== 9) ? [] :
         slice.call(
@@ -193,14 +202,14 @@ define('mob/jqlite', function(require, exports, module) {
   function getData(node, name) {
     var id = node[dataExp],
       store = id && dataCache[id];
-    if (isUndefined(name)) {
+    if (isUndefinedFn(name)) {
       return store || setData(node);
     } else {
       if (store) {
         if (name in store) {
           return store[name];
         }
-        var camelName = lang.camelize(name);
+        var camelName = camelizeFn(name);
         if (camelName in store) {
           return store[camelName];
         }
@@ -212,8 +221,8 @@ define('mob/jqlite', function(require, exports, module) {
   function setData(node, name, value) {
     var id = node[dataExp] || (node[dataExp] = ++duuid),
       store = dataCache[id] || (dataCache[id] = attributeData(node));
-    if (!isUndefined(name)) {
-      store[lang.camelize(name)] = value;
+    if (!isUndefinedFn(name)) {
+      store[camelizeFn(name)] = value;
     }
     return store;
   }
@@ -222,7 +231,7 @@ define('mob/jqlite', function(require, exports, module) {
     var store = {};
     $.each(node.attributes || [], function(i, attr) {
       if (attr.name.indexOf('data-') == 0) {
-        store[lang.camelize(attr.name.replace('data-', ''))] = deserializeValue(attr.value);
+        store[camelizeFn(attr.name.replace('data-', ''))] = deserializeValue(attr.value);
       }
     });
     return store;
@@ -290,7 +299,7 @@ define('mob/jqlite', function(require, exports, module) {
           return;
         }
         e.data = data;
-        var result = callback.apply(element, isUndefined(e._args) ? [e] : [e].concat(e._args));
+        var result = callback.apply(element, isUndefinedFn(e._args) ? [e] : [e].concat(e._args));
         if (result === false) {
           e.preventDefault();
           e.stopPropagation();
@@ -331,7 +340,7 @@ define('mob/jqlite', function(require, exports, module) {
         event[predicate] = returnFalse;
       });
 
-      if (!isUndefined(source.defaultPrevented) ? source.defaultPrevented :
+      if (!isUndefinedFn(source.defaultPrevented) ? source.defaultPrevented :
           'returnValue' in source ? source.returnValue === false :
           source.getPreventDefault && source.getPreventDefault()) {
         event.isDefaultPrevented = returnTrue;
@@ -346,7 +355,7 @@ define('mob/jqlite', function(require, exports, module) {
     };
 
     for (key in event) {
-      if (!ignoreEvtProperties.test(key) && !isUndefined(event[key])) {
+      if (!ignoreEvtProperties.test(key) && !isUndefinedFn(event[key])) {
         proxy[key] = event[key];
       }
     }
@@ -398,7 +407,7 @@ define('mob/jqlite', function(require, exports, module) {
   }
 
   function funcArg(context, arg, idx, payload) {
-    return lang.isFunction(arg) ? arg.call(context, idx, payload) : arg;
+    return isFunctionFn(arg) ? arg.call(context, idx, payload) : arg;
   }
 
   function setAttribute(node, name, value) {
@@ -407,9 +416,9 @@ define('mob/jqlite', function(require, exports, module) {
 
   function className(node, value) {
     var klass = node.className || '',
-      svg = klass && !isUndefined(klass.baseVal);
+      svg = klass && !isUndefinedFn(klass.baseVal);
 
-    if (isUndefined(value)) {
+    if (isUndefinedFn(value)) {
       return svg ? klass.baseVal : klass;
     }
     svg ? (klass.baseVal = value) : (node.className = value);
@@ -543,13 +552,13 @@ define('mob/jqlite', function(require, exports, module) {
   $.proxy = function(fn, context) {
 
     var args = (2 in arguments) && slice.call(arguments, 2);
-    if (lang.isFunction(fn)) {
+    if (isFunctionFn(fn)) {
       var proxyFn = function() {
         return fn.apply(context, args ? args.concat(slice.call(arguments)) : arguments);
       };
       proxyFn.evtId = setEvtId(fn);
       return proxyFn;
-    } else if (lang.isString(context)) {
+    } else if (isStringFn(context)) {
       if (args) {
         args.unshift(fn[context], fn);
         return $.proxy.apply(null, args);
@@ -567,7 +576,7 @@ define('mob/jqlite', function(require, exports, module) {
   };
 
   $.Event = function(type, props) {
-    if (!lang.isString(type)) {
+    if (!isStringFn(type)) {
       props = type;
       type = props.type;
     }
@@ -606,7 +615,7 @@ define('mob/jqlite', function(require, exports, module) {
 
         var nodes = doQsa(node, sel);
       } catch (e) {
-        lang.error('error performing selector: %o', selector);
+        Logger.error('error performing selector: %o', selector);
         throw e;
       } finally {
         if (taggedParent) {
@@ -637,7 +646,7 @@ define('mob/jqlite', function(require, exports, module) {
       if (html.replace) {
         html = html.replace(tagExpanderRE, '<$1></$2>');
       }
-      if (isUndefined(name)) {
+      if (isUndefinedFn(name)) {
         name = fragmentRE.test(html) && RegExp.$1;
       }
       if (!(name in containers)) {
@@ -651,7 +660,7 @@ define('mob/jqlite', function(require, exports, module) {
       });
     }
 
-    if (lang.isPlainObject(properties)) {
+    if (isPlainObjectFn(properties)) {
       nodes = $(dom);
       $.each(properties, function(key, value) {
         if (methodAttributes.indexOf(key) > -1) {
@@ -675,25 +684,25 @@ define('mob/jqlite', function(require, exports, module) {
       if (selector[0] == '<' && fragmentRE.test(selector)) {
         dom = jqlite.fragment(selector, RegExp.$1, context);
         selector = null;
-      } else if (!isUndefined(context)) {
+      } else if (!isUndefinedFn(context)) {
         return $(context).find(selector);
       } else {
         dom = jqlite.qsa(document, selector);
       }
-    } else if (lang.isFunction(selector)) {
+    } else if (isFunctionFn(selector)) {
       return $(document).ready(selector);
     } else if (jqlite.isJQ(selector)) {
       return selector;
     } else {
-      if (lang.isArray(selector)) {
+      if (isArrayFn(selector)) {
         dom = compact(selector);
-      } else if (lang.isObject(selector)) {
+      } else if (isObjectFn(selector)) {
         dom = [selector];
         selector = null;
       } else if (fragmentRE.test(selector)) {
         dom = jqlite.fragment(selector.trim(), RegExp.$1, context);
         selector = null;
-      } else if (!isUndefined(context)) {
+      } else if (!isUndefinedFn(context)) {
         return $(context).find(selector);
       } else {
         dom = jqlite.qsa(document, selector);
@@ -734,7 +743,7 @@ define('mob/jqlite', function(require, exports, module) {
     },
 
     get: function(idx) {
-      return isUndefined(idx) ? slice.call(this) : this[idx >= 0 ? idx : idx + this.length];
+      return isUndefinedFn(idx) ? slice.call(this) : this[idx >= 0 ? idx : idx + this.length];
     },
 
     size: function() {
@@ -755,7 +764,7 @@ define('mob/jqlite', function(require, exports, module) {
     },
 
     filter: function(selector) {
-      if (lang.isFunction(selector)) {
+      if (isFunctionFn(selector)) {
         return this.not(this.not(selector));
       }
       return $(filter.call(this, function(element) {
@@ -769,7 +778,7 @@ define('mob/jqlite', function(require, exports, module) {
 
     not: function(selector) {
       var nodes = [];
-      if (lang.isFunction(selector) && !isUndefined(selector.call)) {
+      if (isFunctionFn(selector) && !isUndefinedFn(selector.call)) {
         this.each(function(idx) {
           if (!selector.call(this, idx)) {
             nodes.push(this);
@@ -777,7 +786,7 @@ define('mob/jqlite', function(require, exports, module) {
         });
       } else {
         var excludes = typeof selector == 'string' ? this.filter(selector) :
-          (likeArray(selector) && lang.isFunction(selector.item)) ? slice.call(selector) : $(selector);
+          (likeArray(selector) && isFunctionFn(selector.item)) ? slice.call(selector) : $(selector);
         this.forEach(function(el) {
           if (excludes.indexOf(el) < 0) {
             nodes.push(el);
@@ -793,7 +802,7 @@ define('mob/jqlite', function(require, exports, module) {
 
     first: function() {
       var el = this[0];
-      return el && !lang.isObject(el) ? el : $(el);
+      return el && !isObjectFn(el) ? el : $(el);
     },
 
     find: function(selector) {
@@ -825,7 +834,7 @@ define('mob/jqlite', function(require, exports, module) {
         collection = $(selector);
       }
       while (node && !(collection ? collection.indexOf(node) >= 0 : jqlite.matches(node, selector))) {
-        node = node !== context && !lang.isDocument(node) && node.parentNode;
+        node = node !== context && !isDocumentFn(node) && node.parentNode;
       }
       return $(node);
     },
@@ -835,7 +844,7 @@ define('mob/jqlite', function(require, exports, module) {
         nodes = this;
       while (nodes.length > 0) {
         nodes = $.map(nodes, function(node) {
-          if ((node = node.parentNode) && !lang.isDocument(node) && ancestors.indexOf(node) < 0) {
+          if ((node = node.parentNode) && !isDocumentFn(node) && ancestors.indexOf(node) < 0) {
             ancestors.push(node);
             return node;
           }
@@ -899,7 +908,7 @@ define('mob/jqlite', function(require, exports, module) {
     },
 
     wrap: function(structure) {
-      var func = lang.isFunction(structure);
+      var func = isFunctionFn(structure);
       if (this[0] && !func) {
         var dom = $(structure).get(0),
           clone = dom.parentNode || this.length > 1;
@@ -937,7 +946,7 @@ define('mob/jqlite', function(require, exports, module) {
     toggle: function(setting) {
       return this.each(function() {
         var el = $(this);
-        (isUndefined(setting) ? el.css('display') == 'none' : setting) ? el.show(): el.hide();
+        (isUndefinedFn(setting) ? el.css('display') == 'none' : setting) ? el.show(): el.hide();
       });
     },
 
@@ -975,7 +984,7 @@ define('mob/jqlite', function(require, exports, module) {
           if (this.nodeType !== 1) {
             return;
           }
-          if (lang.isObject(name)) {
+          if (isObjectFn(name)) {
             for (key in name) {
               setAttribute(this, key, name[key]);
             }
@@ -1050,11 +1059,11 @@ define('mob/jqlite', function(require, exports, module) {
         }
         computedStyle = getComputedStyle(element, '');
         if (typeof property == 'string') {
-          return element.style[lang.camelize(property)] || computedStyle.getPropertyValue(property);
-        } else if (lang.isArray(property)) {
+          return element.style[camelizeFn(property)] || computedStyle.getPropertyValue(property);
+        } else if (isArrayFn(property)) {
           var props = {};
           $.each(property, function(_, prop) {
-            props[prop] = (element.style[lang.camelize(prop)] || computedStyle.getPropertyValue(prop));
+            props[prop] = (element.style[camelizeFn(prop)] || computedStyle.getPropertyValue(prop));
           });
           return props;
         }
@@ -1062,7 +1071,7 @@ define('mob/jqlite', function(require, exports, module) {
 
       var css = '',
         key;
-      if (lang.isString(property)) {
+      if (isStringFn(property)) {
         if (!value && value !== 0) {
           this.each(function() {
             this.style.removeProperty(dasherize(property));
@@ -1121,7 +1130,7 @@ define('mob/jqlite', function(require, exports, module) {
         if (!('className' in this)) {
           return;
         }
-        if (isUndefined(name)) {
+        if (isUndefinedFn(name)) {
           return className(this, '');
         }
         classList = className(this);
@@ -1140,7 +1149,7 @@ define('mob/jqlite', function(require, exports, module) {
         var $this = $(this),
           names = funcArg(this, name, idx, className(this));
         names.split(/\s+/g).forEach(function(klass) {
-          (isUndefined(when) ? !$this.hasClass(klass) : when) ?
+          (isUndefinedFn(when) ? !$this.hasClass(klass) : when) ?
             $this.addClass(klass): $this.removeClass(klass);
         });
       });
@@ -1157,8 +1166,8 @@ define('mob/jqlite', function(require, exports, module) {
     },
 
     data: function(name, value) {
-      return isUndefined(value) ?
-        lang.isPlainObject(name) ?
+      return isUndefinedFn(value) ?
+        isPlainObjectFn(name) ?
           this.each(function(i, node) {
             $.each(name, function(key, value) {
               setData(node, key, value);
@@ -1179,7 +1188,7 @@ define('mob/jqlite', function(require, exports, module) {
           store = id && dataCache[id];
         if (store) {
           $.each(names || store, function(key) {
-            delete store[names ? lang.camelize(this) : key];
+            delete store[names ? camelizeFn(this) : key];
           });
         }
       });
@@ -1188,19 +1197,19 @@ define('mob/jqlite', function(require, exports, module) {
     on: function(event, selector, data, callback, one) {
       var autoRemove, delegator, $this = this;
 
-      if (event && !lang.isString(event)) {
+      if (event && !isStringFn(event)) {
         $.each(event, function(type, fn) {
           $this.on(type, selector, data, fn, one);
         });
         return $this;
       }
 
-      if (!lang.isString(selector) && !lang.isFunction(callback) && callback !== false) {
+      if (!isStringFn(selector) && !isFunctionFn(callback) && callback !== false) {
         callback = data;
         data = selector;
         selector = undefined;
       }
-      if (lang.isFunction(data) || data === false) {
+      if (isFunctionFn(data) || data === false) {
         callback = data;
         data = undefined;
       }
@@ -1236,14 +1245,14 @@ define('mob/jqlite', function(require, exports, module) {
 
     off: function(event, selector, callback) {
       var $this = this;
-      if (event && !lang.isString(event)) {
+      if (event && !isStringFn(event)) {
         $.each(event, function(type, fn) {
           $this.off(type, selector, fn);
         });
         return $this;
       }
 
-      if (!lang.isString(selector) && !lang.isFunction(callback) && callback !== false) {
+      if (!isStringFn(selector) && !isFunctionFn(callback) && callback !== false) {
         callback = selector;
         selector = undefined;
       }
@@ -1270,7 +1279,7 @@ define('mob/jqlite', function(require, exports, module) {
     },
 
     trigger: function(event, args) {
-      event = (lang.isString(event) || lang.isPlainObject(event)) ? $.Event(event) : compatibleEvt(event);
+      event = (isStringFn(event) || isPlainObjectFn(event)) ? $.Event(event) : compatibleEvt(event);
       event._args = args;
       return this.each(function() {
         if (event.type in focus && typeof this[event.type] == 'function') {
@@ -1287,7 +1296,7 @@ define('mob/jqlite', function(require, exports, module) {
       var e, result;
 
       this.each(function(i, element) {
-        e = createProxy(lang.isString(event) ? $.Event(event) : event);
+        e = createProxy(isStringFn(event) ? $.Event(event) : event);
         e._args = args;
         e.target = element;
         $.each(findHandlers(element, event.type || event), function(i, handler) {
@@ -1311,9 +1320,9 @@ define('mob/jqlite', function(require, exports, module) {
 
     $.fn[dimension] = function(value) {
       var offset, el = this[0];
-      if (isUndefined(value)) {
+      if (isUndefinedFn(value)) {
         return lang.isWindow(el) ? el['inner' + dimensionProperty] :
-          lang.isDocument(el) ? el.documentElement['scroll' + dimensionProperty] :
+          isDocumentFn(el) ? el.documentElement['scroll' + dimensionProperty] :
           (offset = this.offset()) && offset[dimension];
       } else {
         return this.each(function(idx) {
@@ -1329,7 +1338,7 @@ define('mob/jqlite', function(require, exports, module) {
 
     $.fn[operator] = function() {
       var nodes = $.map(arguments, function(arg) {
-          return lang.isObject(arg) || lang.isArray(arg) || arg == null ? arg : jqlite.fragment(arg);
+          return isObjectFn(arg) || isArrayFn(arg) || arg == null ? arg : jqlite.fragment(arg);
         }),
         parent, copyByClone = this.length > 1;
 

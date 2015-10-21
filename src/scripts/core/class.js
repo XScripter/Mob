@@ -4,15 +4,17 @@ define('mob/class', function(require, exports, module) {
   var base = require('mob/base');
   var Events = require('mob/events');
 
+  var extendFn = lang.extend;
+
   var Class = function(options) {
-    this.options = lang.extend({}, lang.result(this, 'options'), options);
+    this.options = extendFn({}, lang.result(this, 'options'), options);
 
     this.initialize.apply(this, arguments);
   };
 
   Class.extend = lang.inherits;
 
-  lang.extend(Class.prototype, Events, {
+  extendFn(Class.prototype, Events, {
 
     initialize: function() {},
 

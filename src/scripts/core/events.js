@@ -2,14 +2,16 @@ define('mob/events', function(require, exports, module) {
 
   var lang = require('mob/lang');
 
+  var keysFn = lang.keys;
+  var uniqueIdFn = lang.uniqueId;
+  var bindFn = lang.bind;
+
   var eventsApi = function(iteratee, events, name, callback, opts) {
-    var i = 0,
-      names,
-      eventSplitter = /\s+/;
+    var i = 0, names, eventSplitter = /\s+/;
     if (name && typeof name === 'object') {
       // Handle event maps.
       if (callback !== void 0 && 'context' in opts && opts.context === void 0) opts.context = callback;
-      for (names = lang.keys(name); i < names.length; i++) {
+      for (names = keysFn(name); i < names.length; i++) {
         events = eventsApi(iteratee, events, names[i], name[names[i]], opts);
       }
     } else if (name && eventSplitter.test(name)) {
@@ -41,10 +43,10 @@ define('mob/events', function(require, exports, module) {
   var eventOnApi = function(events, name, callback, options) {
     if (callback) {
       var handlers = events[name] || (events[name] = []);
-      var context = options.context,
-        ctx = options.ctx,
-        listening = options.listening;
-      if (listening) listening.count++;
+      var context = options.context, ctx = options.ctx, listening = options.listening;
+      if (listening) {
+        listening.count++;
+      }
 
       handlers.push({
         callback: callback,
@@ -57,15 +59,16 @@ define('mob/events', function(require, exports, module) {
   };
 
   var eventOffApi = function(events, name, callback, options) {
-    if (!events) return;
+    if (!events) {
+      return;
+    }
 
-    var i = 0,
-      listening;
+    var i = 0, listening;
     var context = options.context,
       listeners = options.listeners;
 
     if (!name && !callback && !context) {
-      var ids = lang.keys(listeners);
+      var ids = keysFn(listeners);
       for (; i < ids.length; i++) {
         listening = listeners[ids[i]];
         delete listeners[listening.id];
@@ -74,7 +77,7 @@ define('mob/events', function(require, exports, module) {
       return;
     }
 
-    var names = name ? [name] : lang.keys(events);
+    var names = name ? [name] : keysFn(events);
     for (; i < names.length; i++) {
       name = names[i];
       var handlers = events[name];
@@ -166,12 +169,12 @@ define('mob/events', function(require, exports, module) {
 
     listenTo: function(obj, name, callback) {
       if (!obj) return this;
-      var id = obj._listenId || (obj._listenId = lang.uniqueId('l'));
+      var id = obj._listenId || (obj._listenId = uniqueIdFn('l'));
       var listeningTo = this._listeningTo || (this._listeningTo = {});
       var listening = listeningTo[id];
 
       if (!listening) {
-        var thisId = this._listenId || (this._listenId = lang.uniqueId('l'));
+        var thisId = this._listenId || (this._listenId = uniqueIdFn('l'));
         listening = listeningTo[id] = {
           obj: obj,
           objId: id,
@@ -199,7 +202,7 @@ define('mob/events', function(require, exports, module) {
       var listeningTo = this._listeningTo;
       if (!listeningTo) return this;
 
-      var ids = obj ? [obj._listenId] : lang.keys(listeningTo);
+      var ids = obj ? [obj._listenId] : keysFn(listeningTo);
 
       for (var i = 0; i < ids.length; i++) {
         var listening = listeningTo[ids[i]];
@@ -216,17 +219,19 @@ define('mob/events', function(require, exports, module) {
     },
 
     once: function(name, callback, context) {
-      var events = eventsApi(eventOnceMap, {}, name, callback, lang.bind(this.off, this));
+      var events = eventsApi(eventOnceMap, {}, name, callback, bindFn(this.off, this));
       return this.on(events, void 0, context);
     },
 
     listenToOnce: function(obj, name, callback) {
-      var events = eventsApi(eventOnceMap, {}, name, callback, lang.bind(this.stopListening, this, obj));
+      var events = eventsApi(eventOnceMap, {}, name, callback, bindFn(this.stopListening, this, obj));
       return this.listenTo(obj, events);
     },
 
     trigger: function(name) {
-      if (!this._events) return this;
+      if (!this._events) {
+        return this;
+      }
 
       var length = Math.max(0, arguments.length - 1);
       var args = Array(length);

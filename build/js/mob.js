@@ -1228,9 +1228,12 @@
   
     var lang = require('mob/lang');
   
+    var inheritsFn = lang.inherits;
+    var pickFn = lang.pick;
+  
     var errorProps = ['description', 'fileName', 'lineNumber', 'name', 'message', 'number'];
   
-    var MoError = lang.inherits.call(Error, {
+    var MoError = inheritsFn.call(Error, {
   
       urlRoot: 'http://xscripter.com/mobjs/docs/v' + Mob.VERSION + '/',
   
@@ -1243,7 +1246,7 @@
         }
   
         var error = Error.call(this, message);
-        lang.extend(this, lang.pick(error, errorProps), lang.pick(options, errorProps));
+        lang.extend(this, pickFn(error, errorProps), pickFn(options, errorProps));
   
         this.captureStackTrace();
   
@@ -1263,7 +1266,7 @@
       }
     });
   
-    MoError.extend = lang.inherits;
+    MoError.extend = inheritsFn;
   
     module.exports = MoError;
   
@@ -1272,9 +1275,18 @@
   define('mob/jqlite', function(require, exports, module) {
   
     var lang = require('mob/lang');
+    var Logger = require('mob/logger');
+  
+    var isUndefinedFn = lang.isUndefined;
+    var camelizeFn = lang.camelize;
+    var isFunctionFn = lang.isFunction;
+    var isStringFn = lang.isString;
+    var isPlainObjectFn = lang.isPlainObject;
+    var isObjectFn = lang.isObject;
+    var isArrayFn = lang.isArray;
+    var isDocumentFn = lang.isDocument;
   
     var undefined,
-      isUndefined = lang.isUndefined,
       $,
       jqlite = {},
       ArrayProto = Array.prototype,
@@ -1444,7 +1456,7 @@
         nameOnly = maybeID || maybeClass ? selector.slice(1) : selector,
         isSimple = simpleSelectorRE.test(nameOnly);
   
-      return (lang.isDocument(element) && isSimple && maybeID) ?
+      return (isDocumentFn(element) && isSimple && maybeID) ?
         ((found = element.getElementById(nameOnly)) ? [found] : []) :
         (element.nodeType !== 1 && element.nodeType !== 9) ? [] :
           slice.call(
@@ -1464,14 +1476,14 @@
     function getData(node, name) {
       var id = node[dataExp],
         store = id && dataCache[id];
-      if (isUndefined(name)) {
+      if (isUndefinedFn(name)) {
         return store || setData(node);
       } else {
         if (store) {
           if (name in store) {
             return store[name];
           }
-          var camelName = lang.camelize(name);
+          var camelName = camelizeFn(name);
           if (camelName in store) {
             return store[camelName];
           }
@@ -1483,8 +1495,8 @@
     function setData(node, name, value) {
       var id = node[dataExp] || (node[dataExp] = ++duuid),
         store = dataCache[id] || (dataCache[id] = attributeData(node));
-      if (!isUndefined(name)) {
-        store[lang.camelize(name)] = value;
+      if (!isUndefinedFn(name)) {
+        store[camelizeFn(name)] = value;
       }
       return store;
     }
@@ -1493,7 +1505,7 @@
       var store = {};
       $.each(node.attributes || [], function(i, attr) {
         if (attr.name.indexOf('data-') == 0) {
-          store[lang.camelize(attr.name.replace('data-', ''))] = deserializeValue(attr.value);
+          store[camelizeFn(attr.name.replace('data-', ''))] = deserializeValue(attr.value);
         }
       });
       return store;
@@ -1561,7 +1573,7 @@
             return;
           }
           e.data = data;
-          var result = callback.apply(element, isUndefined(e._args) ? [e] : [e].concat(e._args));
+          var result = callback.apply(element, isUndefinedFn(e._args) ? [e] : [e].concat(e._args));
           if (result === false) {
             e.preventDefault();
             e.stopPropagation();
@@ -1602,7 +1614,7 @@
           event[predicate] = returnFalse;
         });
   
-        if (!isUndefined(source.defaultPrevented) ? source.defaultPrevented :
+        if (!isUndefinedFn(source.defaultPrevented) ? source.defaultPrevented :
             'returnValue' in source ? source.returnValue === false :
             source.getPreventDefault && source.getPreventDefault()) {
           event.isDefaultPrevented = returnTrue;
@@ -1617,7 +1629,7 @@
       };
   
       for (key in event) {
-        if (!ignoreEvtProperties.test(key) && !isUndefined(event[key])) {
+        if (!ignoreEvtProperties.test(key) && !isUndefinedFn(event[key])) {
           proxy[key] = event[key];
         }
       }
@@ -1669,7 +1681,7 @@
     }
   
     function funcArg(context, arg, idx, payload) {
-      return lang.isFunction(arg) ? arg.call(context, idx, payload) : arg;
+      return isFunctionFn(arg) ? arg.call(context, idx, payload) : arg;
     }
   
     function setAttribute(node, name, value) {
@@ -1678,9 +1690,9 @@
   
     function className(node, value) {
       var klass = node.className || '',
-        svg = klass && !isUndefined(klass.baseVal);
+        svg = klass && !isUndefinedFn(klass.baseVal);
   
-      if (isUndefined(value)) {
+      if (isUndefinedFn(value)) {
         return svg ? klass.baseVal : klass;
       }
       svg ? (klass.baseVal = value) : (node.className = value);
@@ -1814,13 +1826,13 @@
     $.proxy = function(fn, context) {
   
       var args = (2 in arguments) && slice.call(arguments, 2);
-      if (lang.isFunction(fn)) {
+      if (isFunctionFn(fn)) {
         var proxyFn = function() {
           return fn.apply(context, args ? args.concat(slice.call(arguments)) : arguments);
         };
         proxyFn.evtId = setEvtId(fn);
         return proxyFn;
-      } else if (lang.isString(context)) {
+      } else if (isStringFn(context)) {
         if (args) {
           args.unshift(fn[context], fn);
           return $.proxy.apply(null, args);
@@ -1838,7 +1850,7 @@
     };
   
     $.Event = function(type, props) {
-      if (!lang.isString(type)) {
+      if (!isStringFn(type)) {
         props = type;
         type = props.type;
       }
@@ -1877,7 +1889,7 @@
   
           var nodes = doQsa(node, sel);
         } catch (e) {
-          lang.error('error performing selector: %o', selector);
+          Logger.error('error performing selector: %o', selector);
           throw e;
         } finally {
           if (taggedParent) {
@@ -1908,7 +1920,7 @@
         if (html.replace) {
           html = html.replace(tagExpanderRE, '<$1></$2>');
         }
-        if (isUndefined(name)) {
+        if (isUndefinedFn(name)) {
           name = fragmentRE.test(html) && RegExp.$1;
         }
         if (!(name in containers)) {
@@ -1922,7 +1934,7 @@
         });
       }
   
-      if (lang.isPlainObject(properties)) {
+      if (isPlainObjectFn(properties)) {
         nodes = $(dom);
         $.each(properties, function(key, value) {
           if (methodAttributes.indexOf(key) > -1) {
@@ -1946,25 +1958,25 @@
         if (selector[0] == '<' && fragmentRE.test(selector)) {
           dom = jqlite.fragment(selector, RegExp.$1, context);
           selector = null;
-        } else if (!isUndefined(context)) {
+        } else if (!isUndefinedFn(context)) {
           return $(context).find(selector);
         } else {
           dom = jqlite.qsa(document, selector);
         }
-      } else if (lang.isFunction(selector)) {
+      } else if (isFunctionFn(selector)) {
         return $(document).ready(selector);
       } else if (jqlite.isJQ(selector)) {
         return selector;
       } else {
-        if (lang.isArray(selector)) {
+        if (isArrayFn(selector)) {
           dom = compact(selector);
-        } else if (lang.isObject(selector)) {
+        } else if (isObjectFn(selector)) {
           dom = [selector];
           selector = null;
         } else if (fragmentRE.test(selector)) {
           dom = jqlite.fragment(selector.trim(), RegExp.$1, context);
           selector = null;
-        } else if (!isUndefined(context)) {
+        } else if (!isUndefinedFn(context)) {
           return $(context).find(selector);
         } else {
           dom = jqlite.qsa(document, selector);
@@ -2005,7 +2017,7 @@
       },
   
       get: function(idx) {
-        return isUndefined(idx) ? slice.call(this) : this[idx >= 0 ? idx : idx + this.length];
+        return isUndefinedFn(idx) ? slice.call(this) : this[idx >= 0 ? idx : idx + this.length];
       },
   
       size: function() {
@@ -2026,7 +2038,7 @@
       },
   
       filter: function(selector) {
-        if (lang.isFunction(selector)) {
+        if (isFunctionFn(selector)) {
           return this.not(this.not(selector));
         }
         return $(filter.call(this, function(element) {
@@ -2040,7 +2052,7 @@
   
       not: function(selector) {
         var nodes = [];
-        if (lang.isFunction(selector) && !isUndefined(selector.call)) {
+        if (isFunctionFn(selector) && !isUndefinedFn(selector.call)) {
           this.each(function(idx) {
             if (!selector.call(this, idx)) {
               nodes.push(this);
@@ -2048,7 +2060,7 @@
           });
         } else {
           var excludes = typeof selector == 'string' ? this.filter(selector) :
-            (likeArray(selector) && lang.isFunction(selector.item)) ? slice.call(selector) : $(selector);
+            (likeArray(selector) && isFunctionFn(selector.item)) ? slice.call(selector) : $(selector);
           this.forEach(function(el) {
             if (excludes.indexOf(el) < 0) {
               nodes.push(el);
@@ -2064,7 +2076,7 @@
   
       first: function() {
         var el = this[0];
-        return el && !lang.isObject(el) ? el : $(el);
+        return el && !isObjectFn(el) ? el : $(el);
       },
   
       find: function(selector) {
@@ -2096,7 +2108,7 @@
           collection = $(selector);
         }
         while (node && !(collection ? collection.indexOf(node) >= 0 : jqlite.matches(node, selector))) {
-          node = node !== context && !lang.isDocument(node) && node.parentNode;
+          node = node !== context && !isDocumentFn(node) && node.parentNode;
         }
         return $(node);
       },
@@ -2106,7 +2118,7 @@
           nodes = this;
         while (nodes.length > 0) {
           nodes = $.map(nodes, function(node) {
-            if ((node = node.parentNode) && !lang.isDocument(node) && ancestors.indexOf(node) < 0) {
+            if ((node = node.parentNode) && !isDocumentFn(node) && ancestors.indexOf(node) < 0) {
               ancestors.push(node);
               return node;
             }
@@ -2170,7 +2182,7 @@
       },
   
       wrap: function(structure) {
-        var func = lang.isFunction(structure);
+        var func = isFunctionFn(structure);
         if (this[0] && !func) {
           var dom = $(structure).get(0),
             clone = dom.parentNode || this.length > 1;
@@ -2208,7 +2220,7 @@
       toggle: function(setting) {
         return this.each(function() {
           var el = $(this);
-          (isUndefined(setting) ? el.css('display') == 'none' : setting) ? el.show(): el.hide();
+          (isUndefinedFn(setting) ? el.css('display') == 'none' : setting) ? el.show(): el.hide();
         });
       },
   
@@ -2246,7 +2258,7 @@
             if (this.nodeType !== 1) {
               return;
             }
-            if (lang.isObject(name)) {
+            if (isObjectFn(name)) {
               for (key in name) {
                 setAttribute(this, key, name[key]);
               }
@@ -2321,11 +2333,11 @@
           }
           computedStyle = getComputedStyle(element, '');
           if (typeof property == 'string') {
-            return element.style[lang.camelize(property)] || computedStyle.getPropertyValue(property);
-          } else if (lang.isArray(property)) {
+            return element.style[camelizeFn(property)] || computedStyle.getPropertyValue(property);
+          } else if (isArrayFn(property)) {
             var props = {};
             $.each(property, function(_, prop) {
-              props[prop] = (element.style[lang.camelize(prop)] || computedStyle.getPropertyValue(prop));
+              props[prop] = (element.style[camelizeFn(prop)] || computedStyle.getPropertyValue(prop));
             });
             return props;
           }
@@ -2333,7 +2345,7 @@
   
         var css = '',
           key;
-        if (lang.isString(property)) {
+        if (isStringFn(property)) {
           if (!value && value !== 0) {
             this.each(function() {
               this.style.removeProperty(dasherize(property));
@@ -2392,7 +2404,7 @@
           if (!('className' in this)) {
             return;
           }
-          if (isUndefined(name)) {
+          if (isUndefinedFn(name)) {
             return className(this, '');
           }
           classList = className(this);
@@ -2411,7 +2423,7 @@
           var $this = $(this),
             names = funcArg(this, name, idx, className(this));
           names.split(/\s+/g).forEach(function(klass) {
-            (isUndefined(when) ? !$this.hasClass(klass) : when) ?
+            (isUndefinedFn(when) ? !$this.hasClass(klass) : when) ?
               $this.addClass(klass): $this.removeClass(klass);
           });
         });
@@ -2428,8 +2440,8 @@
       },
   
       data: function(name, value) {
-        return isUndefined(value) ?
-          lang.isPlainObject(name) ?
+        return isUndefinedFn(value) ?
+          isPlainObjectFn(name) ?
             this.each(function(i, node) {
               $.each(name, function(key, value) {
                 setData(node, key, value);
@@ -2450,7 +2462,7 @@
             store = id && dataCache[id];
           if (store) {
             $.each(names || store, function(key) {
-              delete store[names ? lang.camelize(this) : key];
+              delete store[names ? camelizeFn(this) : key];
             });
           }
         });
@@ -2459,19 +2471,19 @@
       on: function(event, selector, data, callback, one) {
         var autoRemove, delegator, $this = this;
   
-        if (event && !lang.isString(event)) {
+        if (event && !isStringFn(event)) {
           $.each(event, function(type, fn) {
             $this.on(type, selector, data, fn, one);
           });
           return $this;
         }
   
-        if (!lang.isString(selector) && !lang.isFunction(callback) && callback !== false) {
+        if (!isStringFn(selector) && !isFunctionFn(callback) && callback !== false) {
           callback = data;
           data = selector;
           selector = undefined;
         }
-        if (lang.isFunction(data) || data === false) {
+        if (isFunctionFn(data) || data === false) {
           callback = data;
           data = undefined;
         }
@@ -2507,14 +2519,14 @@
   
       off: function(event, selector, callback) {
         var $this = this;
-        if (event && !lang.isString(event)) {
+        if (event && !isStringFn(event)) {
           $.each(event, function(type, fn) {
             $this.off(type, selector, fn);
           });
           return $this;
         }
   
-        if (!lang.isString(selector) && !lang.isFunction(callback) && callback !== false) {
+        if (!isStringFn(selector) && !isFunctionFn(callback) && callback !== false) {
           callback = selector;
           selector = undefined;
         }
@@ -2541,7 +2553,7 @@
       },
   
       trigger: function(event, args) {
-        event = (lang.isString(event) || lang.isPlainObject(event)) ? $.Event(event) : compatibleEvt(event);
+        event = (isStringFn(event) || isPlainObjectFn(event)) ? $.Event(event) : compatibleEvt(event);
         event._args = args;
         return this.each(function() {
           if (event.type in focus && typeof this[event.type] == 'function') {
@@ -2558,7 +2570,7 @@
         var e, result;
   
         this.each(function(i, element) {
-          e = createProxy(lang.isString(event) ? $.Event(event) : event);
+          e = createProxy(isStringFn(event) ? $.Event(event) : event);
           e._args = args;
           e.target = element;
           $.each(findHandlers(element, event.type || event), function(i, handler) {
@@ -2582,9 +2594,9 @@
   
       $.fn[dimension] = function(value) {
         var offset, el = this[0];
-        if (isUndefined(value)) {
+        if (isUndefinedFn(value)) {
           return lang.isWindow(el) ? el['inner' + dimensionProperty] :
-            lang.isDocument(el) ? el.documentElement['scroll' + dimensionProperty] :
+            isDocumentFn(el) ? el.documentElement['scroll' + dimensionProperty] :
             (offset = this.offset()) && offset[dimension];
         } else {
           return this.each(function(idx) {
@@ -2600,7 +2612,7 @@
   
       $.fn[operator] = function() {
         var nodes = $.map(arguments, function(arg) {
-            return lang.isObject(arg) || lang.isArray(arg) || arg == null ? arg : jqlite.fragment(arg);
+            return isObjectFn(arg) || isArrayFn(arg) || arg == null ? arg : jqlite.fragment(arg);
           }),
           parent, copyByClone = this.length > 1;
   
@@ -2658,10 +2670,14 @@
     var $ = require('mob/jqlite');
     var Error = require('mob/error');
   
+    var eachFn = lang.each;
+    var isFunctionFn = lang.isFunction;
+    var restFn = lang.rest;
+  
     function bindFromStrings(target, entity, evt, methods) {
       var methodNames = methods.split(/\s+/);
   
-      lang.each(methodNames, function(methodName) {
+      eachFn(methodNames, function(methodName) {
   
         var method = target[methodName];
         if (!method) {
@@ -2679,7 +2695,7 @@
     function unbindFromStrings(target, entity, evt, methods) {
       var methodNames = methods.split(/\s+/);
   
-      lang.each(methodNames, function(methodName) {
+      eachFn(methodNames, function(methodName) {
         var method = target[methodName];
         target.stopListening(entity, evt, method);
       });
@@ -2702,11 +2718,11 @@
       bindings = _getValue(bindings, target);
   
       // iterate the bindings and bind them
-      lang.each(bindings, function(methods, evt) {
+      eachFn(bindings, function(methods, evt) {
   
         // allow for a function as the handler,
         // or a list of event names as a string
-        if (lang.isFunction(methods)) {
+        if (isFunctionFn(methods)) {
           functionCallback(target, entity, evt, methods);
         } else {
           stringCallback(target, entity, evt, methods);
@@ -2740,15 +2756,15 @@
         var method = context[methodName];
         var result;
   
-        if (lang.isFunction(method)) {
+        if (isFunctionFn(method)) {
           // pass all args, except the event name
-          result = method.apply(context, noEventArg ? lang.rest(args) : args);
+          result = method.apply(context, noEventArg ? restFn(args) : args);
         }
   
         // trigger the event, if a trigger method exists
-        if (lang.isFunction(context.trigger)) {
+        if (isFunctionFn(context.trigger)) {
           if (noEventArg + args.length > 1) {
-            context.trigger.apply(context, noEventArg ? args : [event].concat(lang.rest(args, 0)));
+            context.trigger.apply(context, noEventArg ? args : [event].concat(restFn(args, 0)));
           } else {
             context.trigger(event);
           }
@@ -2763,9 +2779,9 @@
     };
   
     var triggerMethodOn = exports.triggerMethodOn = function(context) {
-      var fnc = lang.isFunction(context.triggerMethod) ? context.triggerMethod : triggerMethod;
+      var fnc = isFunctionFn(context.triggerMethod) ? context.triggerMethod : triggerMethod;
   
-      return fnc.apply(context, lang.rest(arguments));
+      return fnc.apply(context, restFn(arguments));
     };
   
     // Merge `keys` from `options` onto `this`
@@ -2795,7 +2811,7 @@
     // otherwise just return the value. If the value is
     // undefined return a default value
     var _getValue = exports._getValue = function(value, context, params) {
-      if (lang.isFunction(value)) {
+      if (isFunctionFn(value)) {
         value = params ? value.apply(context, params) : value.call(context);
       }
       return value;
@@ -2805,7 +2821,7 @@
       if (!(object && object[prop])) {
         return null;
       }
-      return lang.isFunction(object[prop]) ? object[prop]() : object[prop];
+      return isFunctionFn(object[prop]) ? object[prop]() : object[prop];
     };
   
     var bindEntityEvents = exports.bindEntityEvents = function(target, entity, bindings) {
@@ -2865,15 +2881,17 @@
     var base = require('mob/base');
     var Events = require('mob/events');
   
+    var extendFn = lang.extend;
+  
     var Class = function(options) {
-      this.options = lang.extend({}, lang.result(this, 'options'), options);
+      this.options = extendFn({}, lang.result(this, 'options'), options);
   
       this.initialize.apply(this, arguments);
     };
   
     Class.extend = lang.inherits;
   
-    lang.extend(Class.prototype, Events, {
+    extendFn(Class.prototype, Events, {
   
       initialize: function() {},
   
@@ -2904,14 +2922,16 @@
   
     var lang = require('mob/lang');
   
+    var keysFn = lang.keys;
+    var uniqueIdFn = lang.uniqueId;
+    var bindFn = lang.bind;
+  
     var eventsApi = function(iteratee, events, name, callback, opts) {
-      var i = 0,
-        names,
-        eventSplitter = /\s+/;
+      var i = 0, names, eventSplitter = /\s+/;
       if (name && typeof name === 'object') {
         // Handle event maps.
         if (callback !== void 0 && 'context' in opts && opts.context === void 0) opts.context = callback;
-        for (names = lang.keys(name); i < names.length; i++) {
+        for (names = keysFn(name); i < names.length; i++) {
           events = eventsApi(iteratee, events, names[i], name[names[i]], opts);
         }
       } else if (name && eventSplitter.test(name)) {
@@ -2943,10 +2963,10 @@
     var eventOnApi = function(events, name, callback, options) {
       if (callback) {
         var handlers = events[name] || (events[name] = []);
-        var context = options.context,
-          ctx = options.ctx,
-          listening = options.listening;
-        if (listening) listening.count++;
+        var context = options.context, ctx = options.ctx, listening = options.listening;
+        if (listening) {
+          listening.count++;
+        }
   
         handlers.push({
           callback: callback,
@@ -2959,15 +2979,16 @@
     };
   
     var eventOffApi = function(events, name, callback, options) {
-      if (!events) return;
+      if (!events) {
+        return;
+      }
   
-      var i = 0,
-        listening;
+      var i = 0, listening;
       var context = options.context,
         listeners = options.listeners;
   
       if (!name && !callback && !context) {
-        var ids = lang.keys(listeners);
+        var ids = keysFn(listeners);
         for (; i < ids.length; i++) {
           listening = listeners[ids[i]];
           delete listeners[listening.id];
@@ -2976,7 +2997,7 @@
         return;
       }
   
-      var names = name ? [name] : lang.keys(events);
+      var names = name ? [name] : keysFn(events);
       for (; i < names.length; i++) {
         name = names[i];
         var handlers = events[name];
@@ -3068,12 +3089,12 @@
   
       listenTo: function(obj, name, callback) {
         if (!obj) return this;
-        var id = obj._listenId || (obj._listenId = lang.uniqueId('l'));
+        var id = obj._listenId || (obj._listenId = uniqueIdFn('l'));
         var listeningTo = this._listeningTo || (this._listeningTo = {});
         var listening = listeningTo[id];
   
         if (!listening) {
-          var thisId = this._listenId || (this._listenId = lang.uniqueId('l'));
+          var thisId = this._listenId || (this._listenId = uniqueIdFn('l'));
           listening = listeningTo[id] = {
             obj: obj,
             objId: id,
@@ -3101,7 +3122,7 @@
         var listeningTo = this._listeningTo;
         if (!listeningTo) return this;
   
-        var ids = obj ? [obj._listenId] : lang.keys(listeningTo);
+        var ids = obj ? [obj._listenId] : keysFn(listeningTo);
   
         for (var i = 0; i < ids.length; i++) {
           var listening = listeningTo[ids[i]];
@@ -3118,17 +3139,19 @@
       },
   
       once: function(name, callback, context) {
-        var events = eventsApi(eventOnceMap, {}, name, callback, lang.bind(this.off, this));
+        var events = eventsApi(eventOnceMap, {}, name, callback, bindFn(this.off, this));
         return this.on(events, void 0, context);
       },
   
       listenToOnce: function(obj, name, callback) {
-        var events = eventsApi(eventOnceMap, {}, name, callback, lang.bind(this.stopListening, this, obj));
+        var events = eventsApi(eventOnceMap, {}, name, callback, bindFn(this.stopListening, this, obj));
         return this.listenTo(obj, events);
       },
   
       trigger: function(name) {
-        if (!this._events) return this;
+        if (!this._events) {
+          return this;
+        }
   
         var length = Math.max(0, arguments.length - 1);
         var args = Array(length);
@@ -3151,7 +3174,8 @@
     var lang = require('mob/lang');
     var Error = require('mob/error');
   
-    var isFunction = lang.isFunction;
+    var isFunctionFn = lang.isFunction;
+    var toArrayFn = lang.toArray;
   
     var makeErrorByStatus = function(statusCode, content) {
       var MAX_LENGTH = 500;
@@ -3193,14 +3217,14 @@
   
     HTTP.request = function(method, url, options, callback) {
   
-      if (!callback && lang.isFunction(options)) {
+      if (!callback && isFunctionFn(options)) {
         callback = options;
         options = null;
       }
   
       options = options || {};
   
-      if (!isFunction(callback)) {
+      if (!isFunctionFn(callback)) {
         throw new Error('Can not make a blocking HTTP call from the client; callback required.');
       }
   
@@ -3334,19 +3358,19 @@
     };
   
     HTTP.get = function( /* url, callOptions, asyncCallback */ ) {
-      return HTTP.request.apply(this, ['GET'].concat(lang.toArray(arguments)));
+      return HTTP.request.apply(this, ['GET'].concat(toArrayFn(arguments)));
     };
   
     HTTP.post = function( /* url, callOptions, asyncCallback */ ) {
-      return HTTP.request.apply(this, ['POST'].concat(lang.toArray(arguments)));
+      return HTTP.request.apply(this, ['POST'].concat(toArrayFn(arguments)));
     };
   
     HTTP.put = function( /* url, callOptions, asyncCallback */ ) {
-      return HTTP.request.apply(this, ['PUT'].concat(lang.toArray(arguments)));
+      return HTTP.request.apply(this, ['PUT'].concat(toArrayFn(arguments)));
     };
   
     HTTP.del = function( /* url, callOptions, asyncCallback */ ) {
-      return HTTP.request.apply(this, ['DELETE'].concat(lang.toArray(arguments)));
+      return HTTP.request.apply(this, ['DELETE'].concat(toArrayFn(arguments)));
     };
   
     module.exports = HTTP;
@@ -3356,6 +3380,11 @@
   define('mob/storage', function(require, exports, module) {
   
     var lang = require('mob/lang');
+  
+    var extendFn = lang.extend;
+    var indexOfFn = lang.indexOf;
+    var isFunctionFn = lang.isFunction;
+    var isUndefinedFn = lang.isUndefined;
   
     var Storage = function(options) {
   
@@ -3374,10 +3403,10 @@
       'cookie': 'Cookie'
     };
   
-    lang.extend(Storage.prototype, {
+    extendFn(Storage.prototype, {
   
       isAvailable: function() {
-        if (lang.isFunction(this.storage.isAvailable)) {
+        if (isFunctionFn(this.storage.isAvailable)) {
           return this.storage.isAvailable();
         } else {
           return true;
@@ -3446,14 +3475,14 @@
   
       _addKey: function(key) {
         var keys = this.keys();
-        if (lang.indexOf(keys, key) === -1) {
+        if (indexOfFn(keys, key) === -1) {
           keys.push(key);
         }
         this.set(this.meta_key, keys);
       },
       _removeKey: function(key) {
         var keys = this.keys();
-        var index = lang.indexOf(keys, key);
+        var index = indexOfFn(keys, key);
         if (index !== -1) {
           keys.splice(index, 1);
         }
@@ -3478,7 +3507,7 @@
       this.expires_in = this.options.expires_in || (14 * 24 * 60 * 60);
     };
   
-    lang.extend(Storage.Cookie.prototype, {
+    extendFn(Storage.Cookie.prototype, {
       isAvailable: function() {
         return ('cookie' in document) && (window.location.protocol != 'file:');
       },
@@ -3521,7 +3550,7 @@
       this.name = name;
     };
   
-    lang.extend(Storage.LocalStorage.prototype, {
+    extendFn(Storage.LocalStorage.prototype, {
   
       isAvailable: function() {
         return ('localStorage' in window) && (window.location.protocol != 'file:');
@@ -3551,12 +3580,12 @@
       this.store = Storage.Memory.store[this.name];
     };
   
-    lang.extend(Storage.Memory.prototype, {
+    extendFn(Storage.Memory.prototype, {
       isAvailable: function() {
         return true;
       },
       exists: function(key) {
-        return !lang.isUndefined(this.store[key]);
+        return !isUndefinedFn(this.store[key]);
       },
       set: function(key, value) {
         return this.store[key] = value;
@@ -3573,11 +3602,11 @@
       this.name = name;
     };
   
-    lang.extend(Storage.SessionStorage.prototype, {
+    extendFn(Storage.SessionStorage.prototype, {
       isAvailable: function() {
         return ('sessionStorage' in window) &&
           (window.location.protocol != 'file:') &&
-          lang.isFunction(window.sessionStorage.setItem);
+          isFunctionFn(window.sessionStorage.setItem);
       },
       exists: function(key) {
         return (this.get(key) != null);
@@ -3587,7 +3616,7 @@
       },
       get: function(key) {
         var value = window.sessionStorage.getItem(this._key(key));
-        if (value && !lang.isUndefined(value.value)) {
+        if (value && !isUndefinedFn(value.value)) {
           value = value.value;
         }
         return value;
@@ -3699,18 +3728,22 @@
     var Error = require('mob/error');
     var Template = require('mob/template');
   
+    var extendFn = lang.extend;
+    var resultFn = lang.result;
+    var isFunctionFn = lang.isFunction;
+  
     var delegateEventSplitter = /^(\S+)\s*(.*)$/;
   
     var viewOptions = ['data', 'options', 'el', 'id', 'attributes', 'className', 'tagName', 'events'];
   
     var View = function(options) {
       this.cid = lang.uniqueId('view');
-      lang.extend(this, lang.pick(options, viewOptions));
+      extendFn(this, lang.pick(options, viewOptions));
       this._ensureElement();
       this.initialize.apply(this, arguments);
     };
   
-    lang.extend(View.prototype, Events, {
+    extendFn(View.prototype, Events, {
   
       isDestroyed: false,
   
@@ -3724,7 +3757,7 @@
   
         var caller = View.prototype.super.caller;
         var found;
-        for (var child = this; child && lang.isFunction(child[fn]); child = child.constructor.__super__) {
+        for (var child = this; child && isFunctionFn(child[fn]); child = child.constructor.__super__) {
           if (!found) {
             found = true;
           } else if (child[fn] != caller) {
@@ -3776,14 +3809,14 @@
       },
   
       delegateEvents: function(events) {
-        events || (events = lang.result(this, 'events'));
+        events || (events = resultFn(this, 'events'));
         if (!events) {
           return this;
         }
         this.undelegateEvents();
         for (var key in events) {
           var method = events[key];
-          if (!lang.isFunction(method)) {
+          if (!isFunctionFn(method)) {
             method = this[method];
           }
           if (!method) {
@@ -3818,17 +3851,17 @@
   
       _ensureElement: function() {
         if (!this.el) {
-          var attrs = lang.extend({}, lang.result(this, 'attributes'));
+          var attrs = extendFn({}, resultFn(this, 'attributes'));
           if (this.id) {
-            attrs.id = lang.result(this, 'id');
+            attrs.id = resultFn(this, 'id');
           }
           if (this.className) {
-            attrs['class'] = lang.result(this, 'className');
+            attrs['class'] = resultFn(this, 'className');
           }
-          this.setElement(this._createElement(lang.result(this, 'tagName')));
+          this.setElement(this._createElement(resultFn(this, 'tagName')));
           this._setAttributes(attrs);
         } else {
-          this.setElement(lang.result(this, 'el'));
+          this.setElement(resultFn(this, 'el'));
         }
       },
   
@@ -3880,10 +3913,12 @@
     var lang = require('mob/lang');
     var $ = require('mob/jqlite');
   
+    var requestAnimationFrameFn = lang.requestAnimationFrame;
+    var getParameterByNameFn = lang.getParameterByName;
+  
     var IOS = 'ios';
     var ANDROID = 'android';
     var WINDOWS_PHONE = 'windowsphone';
-    var requestAnimationFrame = lang.requestAnimationFrame;
     var $body = $('body');
   
     var platformName = null,
@@ -3901,7 +3936,7 @@
       }
       readyCallbacks = [];
   
-      requestAnimationFrame(function() {
+      requestAnimationFrameFn(function() {
         $body.addClass('platform-ready');
       });
     }
@@ -3943,7 +3978,7 @@
       detect: function() {
         Platform._checkPlatforms();
   
-        requestAnimationFrame(function() {
+        requestAnimationFrameFn(function() {
           for (var i = 0; i < Platform.platforms.length; i++) {
             $body.addClass('platform-' + Platform.platforms[i]);
           }
@@ -3953,7 +3988,7 @@
       setGrade: function(grade) {
         var oldGrade = Platform.grade;
         Platform.grade = grade;
-        requestAnimationFrame(function() {
+        requestAnimationFrameFn(function() {
           if (oldGrade) {
             $body.removeClass('grade-' + oldGrade);
           }
@@ -4047,8 +4082,8 @@
       setPlatform: function(n) {
         if (typeof n != 'undefined' && n !== null && n.length) {
           platformName = n.toLowerCase();
-        } else if (lang.getParameterByName('mobplatform')) {
-          platformName = lang.getParameterByName('mobplatform');
+        } else if (getParameterByNameFn('mobplatform')) {
+          platformName = getParameterByNameFn('mobplatform');
         } else if (Platform.ua.indexOf('Android') > 0) {
           platformName = ANDROID;
         } else if (/iPhone|iPad|iPod/.test(Platform.ua)) {
@@ -4123,7 +4158,7 @@
         Platform._showStatusBar = val;
         Platform.ready(function() {
           // run this only when or if the platform (cordova) is ready
-          requestAnimationFrame(function() {
+          requestAnimationFrameFn(function() {
             if (Platform._showStatusBar) {
               // they do not want it to be full screen
               window.StatusBar && window.StatusBar.show();
@@ -4144,7 +4179,7 @@
         // add/remove the fullscreen classname to the body
         $(document).ready(function() {
           // run this only when or if the DOM is ready
-          requestAnimationFrame(function() {
+          requestAnimationFrameFn(function() {
             if (Platform.isFullScreen) {
               $body.addClass('fullscreen');
             } else {
@@ -4177,6 +4212,8 @@
     var lang = require('mob/lang');
     var $ = require('mob/jqlite');
     var Platform = require('mob/platform');
+  
+    var isUndefinedFn = lang.isUndefined;
   
     var deviceIsWindowsPhone = Platform.isWindowsPhone();
     var deviceIsAndroid = Platform.isAndroid() && !deviceIsWindowsPhone;
@@ -4401,7 +4438,7 @@
   
     TouchEvent.prototype.findControl = function(labelElement) {
   
-      if (!lang.isUndefined(labelElement.control)) {
+      if (!isUndefinedFn(labelElement.control)) {
         return labelElement.control;
       }
   
@@ -4557,7 +4594,7 @@
       var metaViewport;
       var chromeVersion;
   
-      if (lang.isUndefined(window.ontouchstart)) {
+      if (isUndefinedFn(window.ontouchstart)) {
         return true;
       }
   
@@ -4607,6 +4644,9 @@
   
     var requestAnimationFrame = lang.requestAnimationFrame;
     var nowFn = lang.now;
+    var isStringFn = lang.isString;
+    var isUndefinedFn = lang.isUndefined;
+  
     var prefixStyle = Support.getPrefixStyle;
   
     var addEventFn = function(el, type, fn, capture) {
@@ -4772,7 +4812,7 @@
     };
   
     function Scroller(el, options) {
-      this.wrapper = lang.isString(el) ? document.querySelector(el) : el;
+      this.wrapper = isStringFn(el) ? document.querySelector(el) : el;
       this.scroller = this.wrapper.children[0];
       this.scrollerStyle = this.scroller.style; // cache style for better performance
   
@@ -4819,9 +4859,9 @@
       this.options.freeScroll = this.options.freeScroll && !this.options.eventPassthrough;
       this.options.directionLockThreshold = this.options.eventPassthrough ? 0 : this.options.directionLockThreshold;
   
-      this.options.bounceEasing = lang.isString(this.options.bounceEasing) ? easeEffect[this.options.bounceEasing] || easeEffect.circular : this.options.bounceEasing;
+      this.options.bounceEasing = isStringFn(this.options.bounceEasing) ? easeEffect[this.options.bounceEasing] || easeEffect.circular : this.options.bounceEasing;
   
-      this.options.resizePolling = lang.isUndefined(this.options.resizePolling) ? 60 : this.options.resizePolling;
+      this.options.resizePolling = isUndefinedFn(this.options.resizePolling) ? 60 : this.options.resizePolling;
   
       if (this.options.tap === true) {
         this.options.tap = 'tap';
@@ -5418,7 +5458,7 @@
   
     Scroller.createScroller = function(el, options) {
   
-      if (lang.isUndefined(el)) {
+      if (isUndefinedFn(el)) {
         throw Error('`el` is empty.');
       }
   
@@ -6371,6 +6411,9 @@
     var lang = require('mob/lang');
     var Error = require('mob/error');
   
+    var defaultsFn = lang.defaults;
+    var isFunctionFn = lang.isFunction;
+  
     var Template = {};
     var templateHelpers = {
       insertComponent: function(componentName) {
@@ -6410,11 +6453,11 @@
     };
   
     Template.registerHelper = function(name, helper) {
-      if (lang.isFunction(templateHelpers[name])) {
+      if (isFunctionFn(templateHelpers[name])) {
         throw new Error('Helper "' + name + '" already defined.');
       }
   
-      if (!lang.isFunction(helper)) {
+      if (!isFunctionFn(helper)) {
         throw new Error('Typeof helper "' + helper + '" is not a function.');
       }
   
@@ -6431,7 +6474,7 @@
         settings = oldSettings;
       }
   
-      settings = lang.defaults({}, settings, Template._settings);
+      settings = defaultsFn({}, settings, Template._settings);
   
       // Combine delimiters into one regular expression via alternation.
       var matcher = RegExp([
@@ -6489,14 +6532,14 @@
     Template.compile = function(text, data, settings) {
   
       if (data) {
-        lang.defaults(data, templateHelpers);
+        defaultsFn(data, templateHelpers);
         return template.apply(this, arguments);
       }
   
       var originalTemplate = template.apply(this, arguments);
   
       var wrappedTemplate = function(data) {
-        data = lang.defaults({}, data, templateHelpers);
+        data = defaultsFn({}, data, templateHelpers);
         return originalTemplate.call(this, data);
       };
   
@@ -6906,6 +6949,10 @@
     var lang = require('mob/lang');
     var $ = require('mob/jqlite');
     var Error = require('mob/error');
+    var Logger = require('mob/logger');
+  
+    var eachFn = lang.each;
+    var isUndefinedFn = lang.isUndefined;
   
     var ScreenComponent = {};
   
@@ -6929,7 +6976,7 @@
       // 当 render 方式为异步调用的时候，可以手动调用 `renderComponents` 初始化组件
       view.renderComponents = function() {
         if (!lang.isEmpty(this.components)) {
-          lang.info('Components have already rendered!');
+          Logger.info('Components have already rendered!');
         } else {
           postrender.call(this);
         }
@@ -6945,7 +6992,7 @@
   
         if (this.components) {
   
-          lang.each(this.components, function(component) {
+          eachFn(this.components, function(component) {
             component.remove();
           });
   
@@ -6955,7 +7002,7 @@
   
       view._createComponent = function(componentName, placeHolderDiv) {
         var componentCreator = this.componentCreators[componentName];
-        if (lang.isUndefined(componentCreator)) {
+        if (isUndefinedFn(componentCreator)) {
           throw new Error('Can not find component creator for component named: ' + componentName);
         }
   
@@ -6968,7 +7015,7 @@
         this.components = {};
       }
   
-      lang.each(this.components, function(component) {
+      eachFn(this.components, function(component) {
         component.$el.detach();
       });
     }
@@ -6985,7 +7032,7 @@
         var componentName = $this.attr('mo-component');
         var newComponent;
   
-        if (lang.isUndefined(self.components[componentName])) {
+        if (isUndefinedFn(self.components[componentName])) {
           newComponent = self._createComponent(componentName, $this);
           if (newComponent === null) {
             return;
@@ -7000,7 +7047,7 @@
   
       // Now that all components have been created, render them one at a time, in the
       // order they occur in the DOM.
-      lang.each(this.components, function(component) {
+      eachFn(this.components, function(component) {
         component.render();
       });
   
@@ -7237,7 +7284,9 @@
     var $ = require('mob/jqlite');
     var Error = require('mob/error');
   
-    var isUndefined = lang.isUndefined;
+    var isUndefinedFn = lang.isUndefined;
+    var bindFn = lang.bind;
+    var isFunctionFn = lang.isFunction;
   
     var hashchangeEvtName = 'hashchange.router';
   
@@ -7258,9 +7307,9 @@
     };
   
     RouterRequest.prototype.get = function(key, defaultValue) {
-      return (this.params && !isUndefined(this.params[key])) ?
-        this.params[key] : (this.query && !isUndefined(this.query[key])) ?
-        this.query[key] : !isUndefined(defaultValue) ? defaultValue : undefined;
+      return (this.params && !isUndefinedFn(this.params[key])) ?
+        this.params[key] : (this.query && !isUndefinedFn(this.query[key])) ?
+        this.query[key] : !isUndefinedFn(defaultValue) ? defaultValue : undefined;
     };
   
     var Router = function(options) {
@@ -7282,7 +7331,7 @@
       };
       this._paused = false;
   
-      var hasChangeHandler = lang.bind(this._onHashChange, this);
+      var hasChangeHandler = bindFn(this._onHashChange, this);
   
       $(window).unbind(hashchangeEvtName).bind(hashchangeEvtName, hasChangeHandler);
     };
@@ -7300,7 +7349,7 @@
     };
   
     Router.prototype._throwsRouteError = function(httpCode, err, url) {
-      if (lang.isFunction(this._errors['_' + httpCode])) {
+      if (isFunctionFn(this._errors['_' + httpCode])) {
         this._errors['_' + httpCode](err, url, httpCode);
       } else {
         this._errors._(err, url, httpCode);
@@ -7359,9 +7408,9 @@
   
       var hasNext = (matchedIndexes.length !== 0);
   
-      var next = lang.bind(function(uO, u, mI, hasNext) {
+      var next = bindFn(function(uO, u, mI, hasNext) {
   
-        return lang.bind(function(hasNext, err, error_code) {
+        return bindFn(function(hasNext, err, error_code) {
           if (!hasNext && !err) {
             return this._throwsRouteError(500, 'Cannot call "next" without an error if request.hasNext is false', fragmentUrl);
           }
@@ -7382,7 +7431,7 @@
       if (befores.length > 0) {
         var nextBefore = befores.splice(0, 1);
         nextBefore = nextBefore[0];
-        next = lang.bind(function(err, error_code) {
+        next = bindFn(function(err, error_code) {
           if (err) {
             return this._throwsRouteError(error_code || 500, err, fragmentUrl);
           }
@@ -7390,7 +7439,7 @@
         }, this);
   
       } else {
-        next = lang.bind(function(err, error_code) {
+        next = bindFn(function(err, error_code) {
           if (err) {
             return this._throwsRouteError(error_code || 500, err, fragmentUrl);
           }
@@ -7441,7 +7490,7 @@
     };
   
     Router.prototype.play = function(triggerNow) {
-      triggerNow = isUndefined(triggerNow) ? false : triggerNow;
+      triggerNow = isUndefinedFn(triggerNow) ? false : triggerNow;
       this._paused = false;
       if (triggerNow) {
         this._route(this._extractFragment(window.location.href));
@@ -7494,7 +7543,7 @@
       if (lang.isNaN(httpCode)) {
         throw new Error('Invalid code for routes error handling');
       }
-      if (!lang.isFunction(callback)) {
+      if (!isFunctionFn(callback)) {
         throw new Error('Invalid callback for routes error handling');
       }
       httpCode = '_' + httpCode;
@@ -7529,6 +7578,9 @@
     var ScreenManager = require('mob/screenManager');
     var Storage = require('mob/storage');
   
+    var extendFn = lang.extend;
+    var isFunctionFn = lang.isFunction;
+  
     var Application = Class.extend({
   
       constructor: function(options) {
@@ -7542,7 +7594,7 @@
   
         this._initRouters(options);
   
-        lang.extend(this, options);
+        extendFn(this, options);
         Class.apply(this, arguments);
       },
   
@@ -7551,7 +7603,7 @@
       // to the app, and runs all of the initializer functions
       start: function(options) {
   
-        options = lang.extend({
+        options = extendFn({
           autoRunRouter: true
         }, options || {});
   
@@ -7630,15 +7682,15 @@
   
       _initRouters: function(options) {
   
-        var routers = lang.isFunction(this.routers) ? this.routers(options) : this.routers || {};
+        var routers = isFunctionFn(this.routers) ? this.routers(options) : this.routers || {};
   
         var optionRouters = base.getOption(options, 'routers');
   
-        if (lang.isFunction(optionRouters)) {
+        if (isFunctionFn(optionRouters)) {
           optionRouters = optionRouters.call(this, options);
         }
   
-        lang.extend(routers, optionRouters);
+        extendFn(routers, optionRouters);
   
         this.addRouters(routers);
   
@@ -7648,7 +7700,7 @@
       // Internal method to initialize the screens that have been defined in a
       // `screens` attribute on the application instance
       _initScreens: function(options) {
-        var screens = lang.isFunction(this.screens) ? this.screens(options) : this.screens || {};
+        var screens = isFunctionFn(this.screens) ? this.screens(options) : this.screens || {};
   
         this._initScreenManager();
   
@@ -7656,12 +7708,12 @@
         var optionScreens = base.getOption(options, 'screens');
   
         // Enable screen options to be a function
-        if (lang.isFunction(optionScreens)) {
+        if (isFunctionFn(optionScreens)) {
           optionScreens = optionScreens.call(this, options);
         }
   
         // Overwrite current screens with those passed in options
-        lang.extend(screens, optionScreens);
+        extendFn(screens, optionScreens);
   
         this.addScreens(screens);
   
@@ -7709,19 +7761,10 @@
   
   });
 
-  var lang = require('mob/lang');
-  lang.extend(Mob, lang);
-  
-  Mob.Logger = require('mob/logger');
-  Mob.each(['debug', 'time', 'timeEnd', 'info', 'warn', 'error', 'log'], function(method) {
-    Mob[method] = Mob.Logger[method];
-  });
-  
+  var Logger = Mob.Logger = require('mob/logger');
   Mob.Error = require('mob/error');
   
-  if (Mob.isUndefined(Mob.$)) {
-    Mob.$ = require('mob/jqlite');
-  }
+  Mob.$ = Mob.$ || require('mob/jqlite');
   
   Mob.Class = require('mob/class');
   Mob.Events = require('mob/events');
@@ -7730,13 +7773,13 @@
   Mob.View = require('mob/view');
   Mob.Support = require('mob/support');
   
-  Mob.Platform = require('mob/platform');
-  Mob.initializePlatform = Mob.Platform.initialize;
-  Mob.Touch = require('mob/touch');
-  Mob.initializeTouchEvent = Mob.Touch.initialize;
+  var Platform = Mob.Platform = require('mob/platform');
+  Mob.initializePlatform = Platform.initialize;
+  var Touch = Mob.Touch = require('mob/touch');
+  Mob.initializeTouchEvent = Touch.initialize;
   Mob.Scroller = require('mob/scroller');
-  Mob.Viewport = require('mob/viewport');
-  Mob.initializeViewport = Mob.Viewport.initialize;
+  var Viewport = Mob.Viewport = require('mob/viewport');
+  Mob.initializeViewport = Viewport.initialize;
   Mob.Transition = require('mob/transition');
   
   Mob.Swipe = require('mob/swipe');
@@ -7747,13 +7790,19 @@
   Mob.ScreenView = require('mob/screenView');
   Mob.ScreenComponent = require('mob/screenComponent');
   Mob.Router = require('mob/router');
-  Mob.Application = require('mob/application');
+  var Application = Mob.Application = require('mob/application');
   Mob.createApplication = function(options) {
-    return new Mob.Application(options);
+    return new Application(options);
   };
   
   Mob.require = Mob.requireModule = require;
   Mob.define = Mob.defineModule = define;
+  
+  var lang = require('mob/lang');
+  lang.extend(Mob, lang);
+  lang.each(['debug', 'time', 'timeEnd', 'info', 'warn', 'error', 'log'], function(method) {
+    Mob[method] = Logger[method];
+  });
 
   return Mob;
 

@@ -2,9 +2,12 @@ define('mob/error', function(require, exports, module) {
 
   var lang = require('mob/lang');
 
+  var inheritsFn = lang.inherits;
+  var pickFn = lang.pick;
+
   var errorProps = ['description', 'fileName', 'lineNumber', 'name', 'message', 'number'];
 
-  var MoError = lang.inherits.call(Error, {
+  var MoError = inheritsFn.call(Error, {
 
     urlRoot: 'http://xscripter.com/mobjs/docs/v' + Mob.VERSION + '/',
 
@@ -17,7 +20,7 @@ define('mob/error', function(require, exports, module) {
       }
 
       var error = Error.call(this, message);
-      lang.extend(this, lang.pick(error, errorProps), lang.pick(options, errorProps));
+      lang.extend(this, pickFn(error, errorProps), pickFn(options, errorProps));
 
       this.captureStackTrace();
 
@@ -37,7 +40,7 @@ define('mob/error', function(require, exports, module) {
     }
   });
 
-  MoError.extend = lang.inherits;
+  MoError.extend = inheritsFn;
 
   module.exports = MoError;
 

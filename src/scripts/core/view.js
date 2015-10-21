@@ -7,18 +7,22 @@ define('mob/view', function(require, exports, module) {
   var Error = require('mob/error');
   var Template = require('mob/template');
 
+  var extendFn = lang.extend;
+  var resultFn = lang.result;
+  var isFunctionFn = lang.isFunction;
+
   var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 
   var viewOptions = ['data', 'options', 'el', 'id', 'attributes', 'className', 'tagName', 'events'];
 
   var View = function(options) {
     this.cid = lang.uniqueId('view');
-    lang.extend(this, lang.pick(options, viewOptions));
+    extendFn(this, lang.pick(options, viewOptions));
     this._ensureElement();
     this.initialize.apply(this, arguments);
   };
 
-  lang.extend(View.prototype, Events, {
+  extendFn(View.prototype, Events, {
 
     isDestroyed: false,
 
@@ -32,7 +36,7 @@ define('mob/view', function(require, exports, module) {
 
       var caller = View.prototype.super.caller;
       var found;
-      for (var child = this; child && lang.isFunction(child[fn]); child = child.constructor.__super__) {
+      for (var child = this; child && isFunctionFn(child[fn]); child = child.constructor.__super__) {
         if (!found) {
           found = true;
         } else if (child[fn] != caller) {
@@ -84,14 +88,14 @@ define('mob/view', function(require, exports, module) {
     },
 
     delegateEvents: function(events) {
-      events || (events = lang.result(this, 'events'));
+      events || (events = resultFn(this, 'events'));
       if (!events) {
         return this;
       }
       this.undelegateEvents();
       for (var key in events) {
         var method = events[key];
-        if (!lang.isFunction(method)) {
+        if (!isFunctionFn(method)) {
           method = this[method];
         }
         if (!method) {
@@ -126,17 +130,17 @@ define('mob/view', function(require, exports, module) {
 
     _ensureElement: function() {
       if (!this.el) {
-        var attrs = lang.extend({}, lang.result(this, 'attributes'));
+        var attrs = extendFn({}, resultFn(this, 'attributes'));
         if (this.id) {
-          attrs.id = lang.result(this, 'id');
+          attrs.id = resultFn(this, 'id');
         }
         if (this.className) {
-          attrs['class'] = lang.result(this, 'className');
+          attrs['class'] = resultFn(this, 'className');
         }
-        this.setElement(this._createElement(lang.result(this, 'tagName')));
+        this.setElement(this._createElement(resultFn(this, 'tagName')));
         this._setAttributes(attrs);
       } else {
-        this.setElement(lang.result(this, 'el'));
+        this.setElement(resultFn(this, 'el'));
       }
     },
 

@@ -1,16 +1,7 @@
-var lang = require('mob/lang');
-lang.extend(Mob, lang);
-
-Mob.Logger = require('mob/logger');
-Mob.each(['debug', 'time', 'timeEnd', 'info', 'warn', 'error', 'log'], function(method) {
-  Mob[method] = Mob.Logger[method];
-});
-
+var Logger = Mob.Logger = require('mob/logger');
 Mob.Error = require('mob/error');
 
-if (Mob.isUndefined(Mob.$)) {
-  Mob.$ = require('mob/jqlite');
-}
+Mob.$ = Mob.$ || require('mob/jqlite');
 
 Mob.Class = require('mob/class');
 Mob.Events = require('mob/events');
@@ -19,13 +10,13 @@ Mob.Storage = require('mob/storage');
 Mob.View = require('mob/view');
 Mob.Support = require('mob/support');
 
-Mob.Platform = require('mob/platform');
-Mob.initializePlatform = Mob.Platform.initialize;
-Mob.Touch = require('mob/touch');
-Mob.initializeTouchEvent = Mob.Touch.initialize;
+var Platform = Mob.Platform = require('mob/platform');
+Mob.initializePlatform = Platform.initialize;
+var Touch = Mob.Touch = require('mob/touch');
+Mob.initializeTouchEvent = Touch.initialize;
 Mob.Scroller = require('mob/scroller');
-Mob.Viewport = require('mob/viewport');
-Mob.initializeViewport = Mob.Viewport.initialize;
+var Viewport = Mob.Viewport = require('mob/viewport');
+Mob.initializeViewport = Viewport.initialize;
 Mob.Transition = require('mob/transition');
 
 Mob.Swipe = require('mob/swipe');
@@ -36,10 +27,16 @@ Mob.Screen = require('mob/screen');
 Mob.ScreenView = require('mob/screenView');
 Mob.ScreenComponent = require('mob/screenComponent');
 Mob.Router = require('mob/router');
-Mob.Application = require('mob/application');
+var Application = Mob.Application = require('mob/application');
 Mob.createApplication = function(options) {
-  return new Mob.Application(options);
+  return new Application(options);
 };
 
 Mob.require = Mob.requireModule = require;
 Mob.define = Mob.defineModule = define;
+
+var lang = require('mob/lang');
+lang.extend(Mob, lang);
+lang.each(['debug', 'time', 'timeEnd', 'info', 'warn', 'error', 'log'], function(method) {
+  Mob[method] = Logger[method];
+});
