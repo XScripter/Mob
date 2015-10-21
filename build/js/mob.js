@@ -7039,6 +7039,53 @@
     var eachFn = lang.each;
     var isUndefinedFn = lang.isUndefined;
   
+    function prerender() {
+      if (!this.components) {
+        this.components = {};
+      }
+  
+      eachFn(this.components, function(component) {
+        component.$el.detach();
+      });
+    }
+  
+    function postrender() {
+      var self = this;
+      this.componentCreators = this.componentCreators || {};
+  
+      // Support componentCreators as both objects and functions.
+      this.componentCreators = lang.result(this, 'componentCreators');
+  
+      this.$('[mo-component]').each(function() {
+        var $this = $(this);
+        var componentName = $this.attr('mo-component');
+        var newComponent;
+  
+        if (isUndefinedFn(self.components[componentName])) {
+          newComponent = self._createComponent(componentName, $this);
+          if (newComponent === null) {
+            return;
+          }
+          self.components[componentName] = newComponent;
+        } else {
+          newComponent = self.components[componentName];
+        }
+  
+        $this.replaceWith(newComponent.$el);
+      });
+  
+      // Now that all components have been created, render them one at a time, in the
+      // order they occur in the DOM.
+      eachFn(this.components, function(component) {
+        component.render();
+      });
+  
+      if(lang.isFunction(this.onComponentsRendered)) {
+        this.onComponentsRendered.call(this);
+      }
+  
+    }
+  
     var ScreenComponent = {};
   
     ScreenComponent.add = function(view) {
@@ -7094,53 +7141,6 @@
         return componentCreator.apply(this);
       };
     };
-  
-    function prerender() {
-      if (!this.components) {
-        this.components = {};
-      }
-  
-      eachFn(this.components, function(component) {
-        component.$el.detach();
-      });
-    }
-  
-    function postrender() {
-      var self = this;
-      this.componentCreators = this.componentCreators || {};
-  
-      // Support componentCreators as both objects and functions.
-      this.componentCreators = lang.result(this, 'componentCreators');
-  
-      this.$('[mo-component]').each(function() {
-        var $this = $(this);
-        var componentName = $this.attr('mo-component');
-        var newComponent;
-  
-        if (isUndefinedFn(self.components[componentName])) {
-          newComponent = self._createComponent(componentName, $this);
-          if (newComponent === null) {
-            return;
-          }
-          self.components[componentName] = newComponent;
-        } else {
-          newComponent = self.components[componentName];
-        }
-  
-        $this.replaceWith(newComponent.$el);
-      });
-  
-      // Now that all components have been created, render them one at a time, in the
-      // order they occur in the DOM.
-      eachFn(this.components, function(component) {
-        component.render();
-      });
-  
-      if(lang.isFunction(this.onComponentsRendered)) {
-        this.onComponentsRendered.call(this);
-      }
-  
-    }
   
     module.exports = ScreenComponent;
   
@@ -7889,6 +7889,7 @@
   Mob.Template = require('mob/template');
   Mob.Component = require('mob/component');
   Mob.Screen = require('mob/screen');
+  Mob.ScreenManager = require('mob/screenManager');
   Mob.ScreenView = require('mob/screenView');
   Mob.ScreenComponent = require('mob/screenComponent');
   Mob.Router = require('mob/router');

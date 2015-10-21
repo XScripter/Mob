@@ -24,6 +24,7 @@ Mob.Swipe = require('mob/swipe');
 Mob.Template = require('mob/template');
 Mob.Component = require('mob/component');
 Mob.Screen = require('mob/screen');
+Mob.ScreenManager = require('mob/screenManager');
 Mob.ScreenView = require('mob/screenView');
 Mob.ScreenComponent = require('mob/screenComponent');
 Mob.Router = require('mob/router');
