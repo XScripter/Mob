@@ -7662,6 +7662,7 @@
     var Router = require('mob/router');
     var ScreenManager = require('mob/screenManager');
     var Storage = require('mob/storage');
+    var Logger = require('mob/logger');
   
     var extendFn = lang.extend;
     var isFunctionFn = lang.isFunction;
@@ -7688,12 +7689,28 @@
       // to the app, and runs all of the initializer functions
       start: function(options) {
   
+        var logPrefix = (options && options.logPrefix) || '[Mob Application]';
+  
         options = extendFn({
-          autoRunRouter: true
+          autoRunRouter: true,
+          logLevel: Logger.WARN,
+          logFormatter: function (messages, context) {
+            messages.unshift(logPrefix);
+            if (context.name) {
+              messages.unshift('[' + context.name + ']');
+            }
+          }
         }, options || {});
   
         this.triggerMethod('before:start', options);
+  
+        Logger.useDefaults({
+          logLevel: options.logLevel,
+          formatter: options.logFormatter
+        });
+  
         options.autoRunRouter && this.appRouter.run();
+  
         this.triggerMethod('start', options);
       },
   
