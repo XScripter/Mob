@@ -16,6 +16,10 @@ define('mob/screenManager', function(require, exports, module) {
       this.addScreens(this.getOption('screens'));
     },
 
+    // Add multiple screens using an object literal or a
+    // function that returns an object literal, where
+    // each key becomes the screen name, and each value is
+    // the screen definition.
     addScreens: function(screenDefinitions, defaults) {
       screenDefinitions = base._getValue(screenDefinitions, this, arguments);
 
@@ -34,6 +38,8 @@ define('mob/screenManager', function(require, exports, module) {
       }, {}, this);
     },
 
+    // Add an individual screen to the screen manager,
+    // and return the screen instance
     addScreen: function(name, definition) {
       var screen;
 
@@ -52,14 +58,18 @@ define('mob/screenManager', function(require, exports, module) {
       return screen;
     },
 
+    // Get a screen by name
     get: function(name) {
       return this._screens[name];
     },
 
+    // Gets all the screens contained within
+    // the `screenManager` instance.
     getScreens: function() {
       return lang.clone(this._screens);
     },
 
+    // Remove a screen by name
     removeScreen: function(name) {
       var screen = this._screens[name];
       this._remove(name, screen);
@@ -67,6 +77,8 @@ define('mob/screenManager', function(require, exports, module) {
       return screen;
     },
 
+    // Empty all screens in the screen manager, and
+    // remove them
     removeScreens: function() {
       var screens = this.getScreens();
       lang.each(this._screens, function(screen, name) {
@@ -76,6 +88,8 @@ define('mob/screenManager', function(require, exports, module) {
       return screens;
     },
 
+    // Empty all screens in the screen manager, but
+    // leave them attached
     emptyScreens: function() {
       var screens = this.getScreens();
       lang.invoke(screens, 'empty');
@@ -84,9 +98,16 @@ define('mob/screenManager', function(require, exports, module) {
 
     destroy: function() {
       this.removeScreens();
-      return Class.prototype.destroy.apply(this, arguments);
+
+      base._triggerMethod(this, 'before:destroy', arguments);
+      base._triggerMethod(this, 'destroy', arguments);
+
+      this.stopListening();
+      this.off();
+      return this;
     },
 
+    // internal method to store screens
     _store: function(name, screen) {
       if (!this._screens[name]) {
         this.length++;
@@ -95,6 +116,7 @@ define('mob/screenManager', function(require, exports, module) {
       this._screens[name] = screen;
     },
 
+    // internal method to remove a screen
     _remove: function(name, screen) {
       this.triggerMethod('before:remove:screen', name, screen);
       screen.empty();
@@ -105,6 +127,7 @@ define('mob/screenManager', function(require, exports, module) {
       this.length--;
       this.triggerMethod('remove:screen', name, screen);
     }
+
   });
 
   module.exports = ScreenManager;

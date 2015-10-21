@@ -7,7 +7,7 @@ define('mob/view', function(require, exports, module) {
 
   var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 
-  var viewOptions = ['data', 'el', 'id', 'attributes', 'className', 'tagName', 'events'];
+  var viewOptions = ['data', 'options', 'el', 'id', 'attributes', 'className', 'tagName', 'events'];
 
   var View = function(options) {
     this.cid = lang.uniqueId('view');
@@ -38,7 +38,7 @@ define('mob/view', function(require, exports, module) {
 
     },
 
-    initialize: function(){},
+    initialize: function() {},
 
     render: function() {
       return this;

@@ -5,6 +5,7 @@ define('mob/application', function(require, exports, module) {
   var Class = require('mob/class');
   var Router = require('mob/router');
   var ScreenManager = require('mob/screenManager');
+  var Storage = require('mob/storage');
 
   var Application = Class.extend({
 
@@ -12,51 +13,118 @@ define('mob/application', function(require, exports, module) {
       this._initializeScreens(options);
 
       this.appRouter = new Router();
+      this.appCache = new Storage({
+        name: 'appCache',
+        type: 'memory'
+      });
 
-      if (options && options.routers) {
-        this._initializeRouters(options.routers);
-      }
+      this._initializeRouters(options);
 
-      lang.defaults(this, options);
-
-      Class.call(this, options);
+      lang.extend(this, options);
+      Class.apply(this, arguments);
     },
 
+    // kick off all of the application's processes.
+    // initializes all of the screens that have been added
+    // to the app, and runs all of the initializer functions
     start: function(options) {
+
+      options = lang.extend({
+        autoRunRouter: true
+      }, options || {});
+
       this.triggerMethod('before:start', options);
+      options.autoRunRouter && this.appRouter.run();
       this.triggerMethod('start', options);
     },
 
+    getLocalStorage: function() {
+      return this._initStorage('local');
+    },
+
+    getSessionStorage: function() {
+      return this._initStorage('session');
+    },
+
+    getCookie: function() {
+      return this._initStorage('cookie');
+    },
+
+    // Add screens to your app.
+    // Accepts a hash of named strings or Screen objects
+    // addScreens({something: "#someScreen"})
+    // addScreens({something: Screen.extend({el: "#someScreen"}) });
     addScreens: function(screens) {
       return this._screenManager.addScreens(screens);
     },
 
+    // Empty all screens in the app, without removing them
     emptyScreens: function() {
       return this._screenManager.emptyScreens();
     },
 
+    // Removes a screen from your app, by name
+    // Accepts the screens name
+    // removeScreen('myScreen')
     removeScreen: function(screen) {
       return this._screenManager.removeScreen(screen);
     },
 
+    // Provides alternative access to screens
+    // Accepts the screen name
+    // getScreen('main')
     getScreen: function(screen) {
       return this._screenManager.get(screen);
     },
 
+    // Get all the screens from the screen manager
     getScreens: function() {
       return this._screenManager.getScreens();
     },
 
+    // Enable easy overriding of the default `ScreenManager`
+    // for customized screen interactions and business-specific
+    // view logic for better control over single screens.
     getScreenManager: function() {
       return new ScreenManager();
     },
 
-    _initializeRouters: function(routers) {
+    addRouters: function(routers) {
       for (var matcher in routers) {
-        this.appRouter.addRoute(matcher, routers[matcher]);
+        this.addRouter(matcher, routers[matcher]);
       }
+      return this;
     },
 
+    addRouter: function(matcher, router) {
+      this.appRouter.addRoute(matcher, router);
+      return this;
+    },
+
+    redirect: function(url) {
+      this.appRouter.redirect(url);
+      return this;
+    },
+
+    _initializeRouters: function(options) {
+
+      var routers = lang.isFunction(this.routers) ? this.routers(options) : this.routers || {};
+
+      var optionRouters = base.getOption(options, 'routers');
+
+      if (lang.isFunction(optionRouters)) {
+        optionRouters = optionRouters.call(this, options);
+      }
+
+      lang.extend(routers, optionRouters);
+
+      this.addRouters(routers);
+
+      return this;
+    },
+
+    // Internal method to initialize the screens that have been defined in a
+    // `screens` attribute on the application instance
     _initializeScreens: function(options) {
       var screens = lang.isFunction(this.screens) ? this.screens(options) : this.screens || {};
 
@@ -78,6 +146,7 @@ define('mob/application', function(require, exports, module) {
       return this;
     },
 
+    // Internal method to set up the screen manager
     _initScreenManager: function() {
       this._screenManager = this.getScreenManager();
       this._screenManager._parent = this;
@@ -99,7 +168,19 @@ define('mob/application', function(require, exports, module) {
         delete this[name];
         base._triggerMethod(this, 'remove:screen', arguments);
       });
+    },
+
+    _initStorage: function(type) {
+      var storageCache = '__app' + type + 'storage';
+      if (!this[storageCache]) {
+        this[storageCache] = new Storage({
+          name: storageCache,
+          type: type
+        });
+      }
+      return this[storageCache];
     }
+
   });
 
   module.exports = Application;

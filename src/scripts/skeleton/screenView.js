@@ -8,6 +8,7 @@ define('mob/screenView', function(require, exports, module) {
   var View = require('mob/view');
   var ScreenComponent = require('mob/screenComponent');
   var Scroller = require('mob/scroller');
+  var Template = require('mob/template');
 
   var ScreenView = View.extend({
 
@@ -18,19 +19,24 @@ define('mob/screenView', function(require, exports, module) {
     className: 'mo-screen-view',
 
     constructor: function(options) {
-      lang.bindAll(this, 'render');
+      this.render = lang.bind(this.render, this);
 
       options = base._getValue(options, this);
 
-      this.options = lang.extend({}, lang.result(this, 'options'), options);
+      View.call(this, options);
 
-      View.call(this, this.options);
-
+      ScreenComponent.add(this);
       base.monitorDOMRefresh(this);
+
     },
 
-    initialize : function() {
-      ScreenComponent.add(this);
+    getTemplate: function() {
+      return this.getOption('template');
+    },
+
+    registerTemplateHelpers: function() {
+      var templateHelpers = this.getOption('templateHelpers');
+      Template.registerHelpers(templateHelpers);
     },
 
     initScroller: function() {
@@ -69,12 +75,17 @@ define('mob/screenView', function(require, exports, module) {
 
       this.triggerMethod.apply(this, ['before:destroy'].concat(args));
 
+      this.isDestroyed = true;
       this.triggerMethod.apply(this, ['destroy'].concat(args));
+
+      this.isRendered = false;
 
       this.remove();
 
       return this;
     },
+
+    mergeOptions: base.mergeOptions,
 
     triggerMethod: base._triggerMethod,
 

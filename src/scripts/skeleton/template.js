@@ -1,6 +1,7 @@
 define('mob/template', function(require, exports, module) {
 
   var lang = require('mob/lang');
+  var Error = require('mob/error');
 
   var Template = {};
   var templateHelpers = {
@@ -33,7 +34,24 @@ define('mob/template', function(require, exports, module) {
   };
 
   Template.registerHelpers = function(newHelpers) {
-    lang.extend(templateHelpers, newHelpers);
+
+    lang.each(newHelpers, function(helper, name) {
+      Template.registerHelper(name, helper);
+    });
+
+  };
+
+  Template.registerHelper = function(name, helper) {
+    if (lang.isFunction(templateHelpers[name])) {
+      throw new Error('Helper "' + name + '" already defined.');
+    }
+
+    if (!lang.isFunction(helper)) {
+      throw new Error('Typeof helper "' + helper + '" is not a function.');
+    }
+
+    templateHelpers[name] = helper;
+
   };
 
   var escapeChar = function(match) {

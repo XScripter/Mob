@@ -4,7 +4,6 @@ define('mob/screen', function(require, exports, module) {
   var $ = require('mob/jqlite');
   var base = require('mob/base');
   var Class = require('mob/class');
-  var Transition = require('mob/transition');
   var Error = require('mob/error');
 
   var Screen = Class.extend({
@@ -24,44 +23,38 @@ define('mob/screen', function(require, exports, module) {
       Class.call(this, options);
     },
 
-    adjustTitle: function(title) {
-      title = title || this.$el.attr('mo-title');
-
-      if (title) {
-        lang.adjustTitle(title);
-      }
-
-    },
-
-    _toggleScreen: function() {
-      var transition = this.$el.attr('mo-transition');
-      if (transition !== 'none') {
-        Transition.goTo(this.$el, transition || 'slideleft', location.hash);
-      } else {
-        this.$el.siblings().removeClass('current');
-        this.$el.addClass('current');
-      }
-    },
-
+    // Displays a Mob view instance inside of the screen.
+    // Handles calling the `render` method for you. Reads content
+    // directly from the `el` attribute. Also calls an optional
+    // `onShow` and `onDestroy` method on your view, just after showing
+    // or just before destroying the view, respectively.
+    // The `preventDestroy` option can be used to prevent a view from
+    // the old view being destroyed on show.
+    // The `forceShow` option can be used to force a view to be
+    // re-rendered if it's already shown in the screen.
     show: function(view, options) {
       if (!this._ensureElement()) {
         return;
       }
 
       this._ensureViewIsIntact(view);
-
-      this.adjustTitle();
-      this._toggleScreen();
+      base.monitorDOMRefresh(view);
 
       var showOptions = options || {};
       var isDifferentView = view !== this.currentView;
       var preventDestroy = !!showOptions.preventDestroy;
       var forceShow = !!showOptions.forceShow;
 
+      // We are only changing the view if there is a current view to change to begin with
       var isChangingView = !!this.currentView;
 
+      // Only destroy the current view if we don't want to `preventDestroy` and if
+      // the view given in the first argument is different than `currentView`
       var _shouldDestroyView = isDifferentView && !preventDestroy;
 
+      // Only show the view given in the first argument if it is different than
+      // the current view or if we want to re-show the view. Note that if
+      // `_shouldDestroyView` is true, then `_shouldShowView` is also necessarily true.
       var _shouldShowView = isDifferentView || forceShow;
 
       if (isChangingView) {
@@ -74,15 +67,20 @@ define('mob/screen', function(require, exports, module) {
 
       if (_shouldDestroyView) {
         this.empty();
-
       } else if (isChangingView && _shouldShowView) {
         this.currentView.off('destroy', this.empty, this);
       }
 
       if (_shouldShowView) {
 
+        // We need to listen for if a view is destroyed
+        // in a way other than through the screen.
+        // If this happens we need to remove the reference
+        // to the currentView since once a view has been destroyed
+        // we can not reuse it.
         view.once('destroy', this.empty, this);
-        view.render();
+
+        this._renderView(view);
 
         view._parent = this;
 
@@ -97,8 +95,12 @@ define('mob/screen', function(require, exports, module) {
           this.triggerMethod('swapOut', this.currentView, this, options);
         }
 
+        // An array of views that we're about to display
         var attachedScreen = base.isNodeAttached(this.el);
 
+        // The views that we're about to attach to the document
+        // It's important that we prevent _getNestedViews from being executed unnecessarily
+        // as it's a potentially-slow method
         var displayedViews = [];
 
         var attachOptions = lang.extend({
@@ -146,6 +148,16 @@ define('mob/screen', function(require, exports, module) {
       return lang.union([view], lang.result(view, '_getNestedViews') || []);
     },
 
+    _renderView: function(view) {
+      if (!view.supportsRenderLifecycle) {
+        base.triggerMethodOn(view, 'before:render', view);
+      }
+      view.render();
+      if (!view.supportsRenderLifecycle) {
+        base.triggerMethodOn(view, 'render', view);
+      }
+    },
+
     _ensureElement: function() {
       if (!lang.isObject(this.el)) {
         this.$el = this.getEl(this.el);
@@ -172,10 +184,15 @@ define('mob/screen', function(require, exports, module) {
       }
     },
 
+    // Override this method to change how the screen finds the DOM
+    // element that it manages. Return a jQuery selector object scoped
+    // to a provided parent el or the document if none exists.
     getEl: function(el) {
       return $(el, base._getValue(this.options.parentEl, this));
     },
 
+    // Override this method to change how the new view is
+    // appended to the `$el` that the screen is managing
     attachHtml: function(view) {
       this.$el.contents().detach();
 
@@ -185,7 +202,10 @@ define('mob/screen', function(require, exports, module) {
     empty: function(options) {
       var view = this.currentView;
 
-      var preventDestroy = base._getValue(options, 'preventDestroy', this);
+      var emptyOptions = options || {};
+      var preventDestroy = !!emptyOptions.preventDestroy;
+      // If there is no view in the screen
+      // we should not remove anything
       if (!view) {
         return;
       }
@@ -207,27 +227,54 @@ define('mob/screen', function(require, exports, module) {
       return this;
     },
 
+    // call 'destroy' or 'remove', depending on which is found on the view (if showing a raw View)
     _destroyView: function() {
       var view = this.currentView;
+      if (view.isDestroyed) {
+        return;
+      }
 
-      if (view.destroy && !view.isDestroyed) {
+      if (!view.supportsDestroyLifecycle) {
+        base.triggerMethodOn(view, 'before:destroy', view);
+      }
+      if (view.destroy) {
         view.destroy();
-      } else if (view.remove) {
+      } else {
         view.remove();
 
+        // appending isDestroyed to raw Backbone View allows screens
+        // to throw a ViewDestroyedError for this view
         view.isDestroyed = true;
+      }
+      if (!view.supportsDestroyLifecycle) {
+        base.triggerMethodOn(view, 'destroy', view);
       }
     },
 
+    // Attach an existing view to the screen. This
+    // will not call `render` or `onShow` for the new view,
+    // and will not replace the current HTML for the `el`
+    // of the screen.
     attachView: function(view) {
+      if (this.currentView) {
+        delete this.currentView._parent;
+      }
+      view._parent = this;
       this.currentView = view;
       return this;
     },
 
+    // Checks whether a view is currently present within
+    // the screen. Returns `true` if there is and `false` if
+    // no view is present.
     hasView: function() {
       return !!this.currentView;
     },
 
+    // Reset the screen by destroying any existing view and
+    // clearing out the cached `$el`. The next time a view
+    // is shown via this screen, the screen will re-query the
+    // DOM for the screen's `el`.
     reset: function() {
       this.empty();
 
@@ -240,6 +287,7 @@ define('mob/screen', function(require, exports, module) {
     }
 
   }, {
+
     buildScreen: function(screenConfig, DefaultScreenClass) {
       if (lang.isString(screenConfig)) {
         return this._buildScreenFromSelector(screenConfig, DefaultScreenClass);
@@ -256,12 +304,15 @@ define('mob/screen', function(require, exports, module) {
       throw new Error('Improper screen configuration type.');
     },
 
+    // Build the screen from a string selector like '#foo-screen'
     _buildScreenFromSelector: function(selector, DefaultScreenClass) {
       return new DefaultScreenClass({
         el: selector
       });
     },
 
+    // Build the screen from a configuration object
+    // { selector: '#foo', screenClass: FooScreen, allowMissingEl: false }
     _buildScreenFromObject: function(screenConfig, DefaultScreenClass) {
       var ScreenClass = screenConfig.screenClass || DefaultScreenClass;
       var options = lang.omit(screenConfig, 'selector', 'screenClass');
@@ -273,9 +324,11 @@ define('mob/screen', function(require, exports, module) {
       return new ScreenClass(options);
     },
 
+    // Build the screen directly from a given `ScreenClass`
     _buildScreenFromScreenClass: function(ScreenClass) {
       return new ScreenClass();
     }
+
   });
 
   module.exports = Screen;

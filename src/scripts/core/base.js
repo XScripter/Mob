@@ -4,7 +4,7 @@ define('mob/base', function(require, exports, module) {
   var $ = require('mob/jqlite');
   var Error = require('mob/error');
 
-  function baseBindFromStrings(target, entity, evt, methods) {
+  function bindFromStrings(target, entity, evt, methods) {
     var methodNames = methods.split(/\s+/);
 
     lang.each(methodNames, function(methodName) {
@@ -18,11 +18,11 @@ define('mob/base', function(require, exports, module) {
     });
   }
 
-  function baseBindToFunction(target, entity, evt, method) {
+  function bindToFunction(target, entity, evt, method) {
     target.listenTo(entity, evt, method);
   }
 
-  function baseUnbindFromStrings(target, entity, evt, methods) {
+  function unbindFromStrings(target, entity, evt, methods) {
     var methodNames = methods.split(/\s+/);
 
     lang.each(methodNames, function(methodName) {
@@ -31,11 +31,11 @@ define('mob/base', function(require, exports, module) {
     });
   }
 
-  function baseUnbindToFunction(target, entity, evt, method) {
+  function unbindToFunction(target, entity, evt, method) {
     target.stopListening(entity, evt, method);
   }
 
-  function baseIterateEvents(target, entity, bindings, functionCallback, stringCallback) {
+  function iterateEvents(target, entity, bindings, functionCallback, stringCallback) {
     if (!entity || !bindings) {
       return;
     }
@@ -66,6 +66,8 @@ define('mob/base', function(require, exports, module) {
   };
 
   var _triggerMethod = exports._triggerMethod = (function() {
+
+    // split the event name on the ":"
     var splitter = /(^|:)(\w)/gi;
 
     function getEventName(match, prefix, eventName) {
@@ -79,14 +81,17 @@ define('mob/base', function(require, exports, module) {
         event = args[0];
       }
 
+      // get the method name from the event name
       var methodName = 'on' + event.replace(splitter, getEventName);
       var method = context[methodName];
       var result;
 
       if (lang.isFunction(method)) {
+        // pass all args, except the event name
         result = method.apply(context, noEventArg ? lang.rest(args) : args);
       }
 
+      // trigger the event, if a trigger method exists
       if (lang.isFunction(context.trigger)) {
         if (noEventArg + args.length > 1) {
           context.trigger.apply(context, noEventArg ? args : [event].concat(lang.rest(args, 0)));
@@ -103,12 +108,13 @@ define('mob/base', function(require, exports, module) {
     return _triggerMethod(this, arguments);
   };
 
-  exports.triggerMethodOn = function(context) {
+  var triggerMethodOn = exports.triggerMethodOn = function(context) {
     var fnc = lang.isFunction(context.triggerMethod) ? context.triggerMethod : triggerMethod;
 
     return fnc.apply(context, lang.rest(arguments));
   };
 
+  // Merge `keys` from `options` onto `this`
   exports.mergeOptions = function(options, keys) {
     if (!options) {
       return;
@@ -120,7 +126,7 @@ define('mob/base', function(require, exports, module) {
     if (!target || !optionName) {
       return;
     }
-    if (target.options && (target.options[optionName] !== undefined)) {
+    if (target.options && (!lang.isUndefined(target.options[optionName]))) {
       return target.options[optionName];
     } else {
       return target[optionName];
@@ -131,6 +137,9 @@ define('mob/base', function(require, exports, module) {
     return getOption(this, optionName);
   };
 
+  // If a function is provided we call it with context
+  // otherwise just return the value. If the value is
+  // undefined return a default value
   var _getValue = exports._getValue = function(value, context, params) {
     if (lang.isFunction(value)) {
       value = params ? value.apply(context, params) : value.call(context);
@@ -146,11 +155,11 @@ define('mob/base', function(require, exports, module) {
   };
 
   var bindEntityEvents = exports.bindEntityEvents = function(target, entity, bindings) {
-    baseIterateEvents(target, entity, bindings, baseBindToFunction, baseBindFromStrings);
+    iterateEvents(target, entity, bindings, bindToFunction, bindFromStrings);
   };
 
   var unbindEntityEvents = exports.unbindEntityEvents = function(target, entity, bindings) {
-    baseIterateEvents(target, entity, bindings, baseUnbindToFunction, baseUnbindFromStrings);
+    iterateEvents(target, entity, bindings, unbindToFunction, unbindFromStrings);
   };
 
   exports.proxyBindEntityEvents = function(entity, bindings) {
@@ -161,7 +170,16 @@ define('mob/base', function(require, exports, module) {
     return unbindEntityEvents(this, entity, bindings);
   };
 
+  // Monitor a view's state, and after it has been rendered and shown
+  // in the DOM, trigger a "dom:refresh" event every time it is
+  // re-rendered.
   exports.monitorDOMRefresh = function(view) {
+
+    if (view._isDomRefreshMonitored) {
+      return;
+    }
+
+    view._isDomRefreshMonitored = true;
 
     function handleShow() {
       view._isShown = true;
@@ -175,9 +193,7 @@ define('mob/base', function(require, exports, module) {
 
     function triggerDOMRefresh() {
       if (view._isShown && view._isRendered && isNodeAttached(view.el)) {
-        if (lang.isFunction(view.triggerMethod)) {
-          view.triggerMethod('dom:refresh');
-        }
+        triggerMethodOn(view, 'dom:refresh', view);
       }
     }
 
