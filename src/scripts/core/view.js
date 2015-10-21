@@ -163,9 +163,11 @@ define('mob/view', function(require, exports, module) {
       return this;
     },
 
-    mergeOptions: base.mergeOptions,
+    triggerMethod: function() {
+      return base._triggerMethod(this, arguments);
+    },
 
-    triggerMethod: base._triggerMethod,
+    mergeOptions: base.mergeOptions,
 
     getOption: base.proxyGetOption,
 

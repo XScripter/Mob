@@ -3856,9 +3856,11 @@
         return this;
       },
   
-      mergeOptions: base.mergeOptions,
+      triggerMethod: function() {
+        return base._triggerMethod(this, arguments);
+      },
   
-      triggerMethod: base._triggerMethod,
+      mergeOptions: base.mergeOptions,
   
       getOption: base.proxyGetOption,
   
@@ -6661,7 +6663,7 @@
           // we can not reuse it.
           view.once('destroy', this.empty, this);
   
-          this._renderView(view);
+          view.render();
   
           view._parent = this;
   
@@ -6727,16 +6729,6 @@
   
       _displayedViews: function(view) {
         return lang.union([view], lang.result(view, '_getNestedViews') || []);
-      },
-  
-      _renderView: function(view) {
-        if (!view.supportsRenderLifecycle) {
-          base.triggerMethodOn(view, 'before:render', view);
-        }
-        view.render();
-        if (!view.supportsRenderLifecycle) {
-          base.triggerMethodOn(view, 'render', view);
-        }
       },
   
       _ensureElement: function() {
@@ -6815,9 +6807,6 @@
           return;
         }
   
-        if (!view.supportsDestroyLifecycle) {
-          base.triggerMethodOn(view, 'before:destroy', view);
-        }
         if (view.destroy) {
           view.destroy();
         } else {
@@ -6826,9 +6815,6 @@
           // appending isDestroyed to raw Backbone View allows screens
           // to throw a ViewDestroyedError for this view
           view.isDestroyed = true;
-        }
-        if (!view.supportsDestroyLifecycle) {
-          base.triggerMethodOn(view, 'destroy', view);
         }
       },
   

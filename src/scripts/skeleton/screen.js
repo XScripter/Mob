@@ -80,7 +80,7 @@ define('mob/screen', function(require, exports, module) {
         // we can not reuse it.
         view.once('destroy', this.empty, this);
 
-        this._renderView(view);
+        view.render();
 
         view._parent = this;
 
@@ -146,16 +146,6 @@ define('mob/screen', function(require, exports, module) {
 
     _displayedViews: function(view) {
       return lang.union([view], lang.result(view, '_getNestedViews') || []);
-    },
-
-    _renderView: function(view) {
-      if (!view.supportsRenderLifecycle) {
-        base.triggerMethodOn(view, 'before:render', view);
-      }
-      view.render();
-      if (!view.supportsRenderLifecycle) {
-        base.triggerMethodOn(view, 'render', view);
-      }
     },
 
     _ensureElement: function() {
@@ -234,9 +224,6 @@ define('mob/screen', function(require, exports, module) {
         return;
       }
 
-      if (!view.supportsDestroyLifecycle) {
-        base.triggerMethodOn(view, 'before:destroy', view);
-      }
       if (view.destroy) {
         view.destroy();
       } else {
@@ -245,9 +232,6 @@ define('mob/screen', function(require, exports, module) {
         // appending isDestroyed to raw Backbone View allows screens
         // to throw a ViewDestroyedError for this view
         view.isDestroyed = true;
-      }
-      if (!view.supportsDestroyLifecycle) {
-        base.triggerMethodOn(view, 'destroy', view);
       }
     },
 
