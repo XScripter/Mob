@@ -3191,17 +3191,16 @@
   
     var HTTP = {};
   
-    HTTP.call = function(method, url, options, callback) {
+    HTTP.request = function(method, url, options, callback) {
   
-      // support (method, url, callback) argument list
-      if (!callback && isFunction(options)) {
+      if (!callback && lang.isFunction(options)) {
         callback = options;
         options = null;
       }
   
       options = options || {};
   
-      if (isFunction(callback)) {
+      if (!isFunction(callback)) {
         throw new Error('Can not make a blocking HTTP call from the client; callback required.');
       }
   
@@ -3335,19 +3334,19 @@
     };
   
     HTTP.get = function( /* url, callOptions, asyncCallback */ ) {
-      return HTTP.call.apply(this, ['GET'].concat(lang.toArray(arguments)));
+      return HTTP.request.apply(this, ['GET'].concat(lang.toArray(arguments)));
     };
   
     HTTP.post = function( /* url, callOptions, asyncCallback */ ) {
-      return HTTP.call.apply(this, ['POST'].concat(lang.toArray(arguments)));
+      return HTTP.request.apply(this, ['POST'].concat(lang.toArray(arguments)));
     };
   
     HTTP.put = function( /* url, callOptions, asyncCallback */ ) {
-      return HTTP.call.apply(this, ['PUT'].concat(lang.toArray(arguments)));
+      return HTTP.request.apply(this, ['PUT'].concat(lang.toArray(arguments)));
     };
   
     HTTP.del = function( /* url, callOptions, asyncCallback */ ) {
-      return HTTP.call.apply(this, ['DELETE'].concat(lang.toArray(arguments)));
+      return HTTP.request.apply(this, ['DELETE'].concat(lang.toArray(arguments)));
     };
   
     module.exports = HTTP;
