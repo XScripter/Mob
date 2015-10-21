@@ -10,7 +10,7 @@
  * 
  * Licensed under MIT
  * 
- * Released on: October 19, 2015
+ * Released on: October 21, 2015
  */
 (function(factory) {
   var root = (typeof self == 'object' && self.self == self && self) ||
@@ -2658,7 +2658,7 @@
     var $ = require('mob/jqlite');
     var Error = require('mob/error');
   
-    function baseBindFromStrings(target, entity, evt, methods) {
+    function bindFromStrings(target, entity, evt, methods) {
       var methodNames = methods.split(/\s+/);
   
       lang.each(methodNames, function(methodName) {
@@ -2672,11 +2672,11 @@
       });
     }
   
-    function baseBindToFunction(target, entity, evt, method) {
+    function bindToFunction(target, entity, evt, method) {
       target.listenTo(entity, evt, method);
     }
   
-    function baseUnbindFromStrings(target, entity, evt, methods) {
+    function unbindFromStrings(target, entity, evt, methods) {
       var methodNames = methods.split(/\s+/);
   
       lang.each(methodNames, function(methodName) {
@@ -2685,11 +2685,11 @@
       });
     }
   
-    function baseUnbindToFunction(target, entity, evt, method) {
+    function unbindToFunction(target, entity, evt, method) {
       target.stopListening(entity, evt, method);
     }
   
-    function baseIterateEvents(target, entity, bindings, functionCallback, stringCallback) {
+    function iterateEvents(target, entity, bindings, functionCallback, stringCallback) {
       if (!entity || !bindings) {
         return;
       }
@@ -2715,11 +2715,13 @@
       });
     }
   
-    exports.isNodeAttached = function(el) {
+    var isNodeAttached = exports.isNodeAttached = function(el) {
       return $.contains(document.documentElement, el);
     };
   
     var _triggerMethod = exports._triggerMethod = (function() {
+  
+      // split the event name on the ":"
       var splitter = /(^|:)(\w)/gi;
   
       function getEventName(match, prefix, eventName) {
@@ -2733,14 +2735,17 @@
           event = args[0];
         }
   
+        // get the method name from the event name
         var methodName = 'on' + event.replace(splitter, getEventName);
         var method = context[methodName];
         var result;
   
         if (lang.isFunction(method)) {
+          // pass all args, except the event name
           result = method.apply(context, noEventArg ? lang.rest(args) : args);
         }
   
+        // trigger the event, if a trigger method exists
         if (lang.isFunction(context.trigger)) {
           if (noEventArg + args.length > 1) {
             context.trigger.apply(context, noEventArg ? args : [event].concat(lang.rest(args, 0)));
@@ -2757,12 +2762,13 @@
       return _triggerMethod(this, arguments);
     };
   
-    exports.triggerMethodOn = function(context) {
+    var triggerMethodOn = exports.triggerMethodOn = function(context) {
       var fnc = lang.isFunction(context.triggerMethod) ? context.triggerMethod : triggerMethod;
   
       return fnc.apply(context, lang.rest(arguments));
     };
   
+    // Merge `keys` from `options` onto `this`
     exports.mergeOptions = function(options, keys) {
       if (!options) {
         return;
@@ -2774,7 +2780,7 @@
       if (!target || !optionName) {
         return;
       }
-      if (target.options && (target.options[optionName] !== undefined)) {
+      if (target.options && (!lang.isUndefined(target.options[optionName]))) {
         return target.options[optionName];
       } else {
         return target[optionName];
@@ -2785,6 +2791,9 @@
       return getOption(this, optionName);
     };
   
+    // If a function is provided we call it with context
+    // otherwise just return the value. If the value is
+    // undefined return a default value
     var _getValue = exports._getValue = function(value, context, params) {
       if (lang.isFunction(value)) {
         value = params ? value.apply(context, params) : value.call(context);
@@ -2800,11 +2809,11 @@
     };
   
     var bindEntityEvents = exports.bindEntityEvents = function(target, entity, bindings) {
-      baseIterateEvents(target, entity, bindings, baseBindToFunction, baseBindFromStrings);
+      iterateEvents(target, entity, bindings, bindToFunction, bindFromStrings);
     };
   
     var unbindEntityEvents = exports.unbindEntityEvents = function(target, entity, bindings) {
-      baseIterateEvents(target, entity, bindings, baseUnbindToFunction, baseUnbindFromStrings);
+      iterateEvents(target, entity, bindings, unbindToFunction, unbindFromStrings);
     };
   
     exports.proxyBindEntityEvents = function(entity, bindings) {
@@ -2813,6 +2822,39 @@
   
     exports.proxyUnbindEntityEvents = function(entity, bindings) {
       return unbindEntityEvents(this, entity, bindings);
+    };
+  
+    // Monitor a view's state, and after it has been rendered and shown
+    // in the DOM, trigger a "dom:refresh" event every time it is
+    // re-rendered.
+    exports.monitorDOMRefresh = function(view) {
+  
+      if (view._isDomRefreshMonitored) {
+        return;
+      }
+  
+      view._isDomRefreshMonitored = true;
+  
+      function handleShow() {
+        view._isShown = true;
+        triggerDOMRefresh();
+      }
+  
+      function handleRender() {
+        view._isRendered = true;
+        triggerDOMRefresh();
+      }
+  
+      function triggerDOMRefresh() {
+        if (view._isShown && view._isRendered && isNodeAttached(view.el)) {
+          triggerMethodOn(view, 'dom:refresh', view);
+        }
+      }
+  
+      view.on({
+        show: handleShow,
+        render: handleRender
+      });
     };
   
   });
@@ -3655,6 +3697,8 @@
     var $ = require('mob/jqlite');
     var Events = require('mob/events');
     var base = require('mob/base');
+    var Error = require('mob/error');
+    var Template = require('mob/template');
   
     var delegateEventSplitter = /^(\S+)\s*(.*)$/;
   
@@ -3668,6 +3712,8 @@
     };
   
     lang.extend(View.prototype, Events, {
+  
+      isDestroyed: false,
   
       tagName: 'div',
   
@@ -3689,10 +3735,23 @@
   
       },
   
-      initialize: function(){},
+      initialize: function() {},
   
       render: function() {
         return this;
+      },
+  
+      getTemplate: function() {
+        return this.getOption('template');
+      },
+  
+      registerTemplateHelpers: function() {
+        var templateHelpers = this.getOption('templateHelpers');
+  
+        if (lang.isObject(templateHelpers)) {
+          Template.registerHelpers(templateHelpers);
+        }
+  
       },
   
       remove: function() {
@@ -3776,7 +3835,36 @@
   
       _setAttributes: function(attributes) {
         this.$el.attr(attributes);
-      }
+      },
+  
+      _ensureViewIsIntact: function() {
+        if (this.isDestroyed) {
+          throw new Error('View (cid: "' + this.cid + '") has already been destroyed and cannot be used.');
+        }
+      },
+  
+      destroy: function() {
+  
+        if (this.isDestroyed) {
+          return this;
+        }
+  
+        this.isDestroyed = true;
+  
+        this.remove();
+  
+        return this;
+      },
+  
+      mergeOptions: base.mergeOptions,
+  
+      triggerMethod: base._triggerMethod,
+  
+      getOption: base.proxyGetOption,
+  
+      bindEntityEvents: base.proxyBindEntityEvents,
+  
+      unbindEntityEvents: base.proxyUnbindEntityEvents
   
     });
   
@@ -6280,6 +6368,7 @@
   define('mob/template', function(require, exports, module) {
   
     var lang = require('mob/lang');
+    var Error = require('mob/error');
   
     var Template = {};
     var templateHelpers = {
@@ -6312,7 +6401,24 @@
     };
   
     Template.registerHelpers = function(newHelpers) {
-      lang.extend(templateHelpers, newHelpers);
+  
+      lang.each(newHelpers, function(helper, name) {
+        Template.registerHelper(name, helper);
+      });
+  
+    };
+  
+    Template.registerHelper = function(name, helper) {
+      if (lang.isFunction(templateHelpers[name])) {
+        throw new Error('Helper "' + name + '" already defined.');
+      }
+  
+      if (!lang.isFunction(helper)) {
+        throw new Error('Typeof helper "' + helper + '" is not a function.');
+      }
+  
+      templateHelpers[name] = helper;
+  
     };
   
     var escapeChar = function(match) {
@@ -6402,13 +6508,70 @@
 
   define('mob/component', function(require, exports, module) {
   
+    var lang = require('mob/lang');
     var View = require('mob/view');
+    var Error = require('mob/error');
+    var Template = require('mob/template');
   
     var Component = View.extend({
   
       tagName: 'div',
   
-      className: 'mo-component'
+      className: 'mo-component',
+  
+      serializeData: function() {
+        if (lang.isFunction(this.data)) {
+          var serializeData = this.data();
+          if (lang.isObject(serializeData)) {
+            this.data = serializeData;
+          }
+        }
+  
+        return {
+          data: this.data || {}
+        };
+      },
+  
+      render: function() {
+        this._ensureViewIsIntact();
+  
+        this.triggerMethod('before:render', this);
+  
+        this._renderTemplate();
+        this.isRendered = true;
+  
+        this.triggerMethod('render', this);
+  
+        return this;
+      },
+  
+      _renderTemplate: function() {
+        var template = this.getTemplate();
+  
+        if (template === false) {
+          return;
+        }
+  
+        if (!template) {
+          throw new Error('Cannot render the template since it is null or undefined.');
+        }
+  
+        this.registerTemplateHelpers();
+        var data = this.serializeData();
+  
+        var compileHtml = Template.compile(template, data);
+  
+        // Render and add to el
+        this.attachElContent(compileHtml);
+  
+        return this;
+      },
+  
+      attachElContent: function(html) {
+        this.$el.html(html);
+  
+        return this;
+      }
   
     });
   
@@ -6422,7 +6585,6 @@
     var $ = require('mob/jqlite');
     var base = require('mob/base');
     var Class = require('mob/class');
-    var Transition = require('mob/transition');
     var Error = require('mob/error');
   
     var Screen = Class.extend({
@@ -6442,44 +6604,38 @@
         Class.call(this, options);
       },
   
-      adjustTitle: function(title) {
-        title = title || this.$el.attr('mo-title');
-  
-        if (title) {
-          lang.adjustTitle(title);
-        }
-  
-      },
-  
-      _toggleScreen: function() {
-        var transition = this.$el.attr('mo-transition');
-        if (transition !== 'none') {
-          Transition.goTo(this.$el, transition || 'slideleft', location.hash);
-        } else {
-          this.$el.siblings().removeClass('current');
-          this.$el.addClass('current');
-        }
-      },
-  
+      // Displays a Mob view instance inside of the screen.
+      // Handles calling the `render` method for you. Reads content
+      // directly from the `el` attribute. Also calls an optional
+      // `onShow` and `onDestroy` method on your view, just after showing
+      // or just before destroying the view, respectively.
+      // The `preventDestroy` option can be used to prevent a view from
+      // the old view being destroyed on show.
+      // The `forceShow` option can be used to force a view to be
+      // re-rendered if it's already shown in the screen.
       show: function(view, options) {
         if (!this._ensureElement()) {
           return;
         }
   
         this._ensureViewIsIntact(view);
-  
-        this.adjustTitle();
-        this._toggleScreen();
+        base.monitorDOMRefresh(view);
   
         var showOptions = options || {};
         var isDifferentView = view !== this.currentView;
         var preventDestroy = !!showOptions.preventDestroy;
         var forceShow = !!showOptions.forceShow;
   
+        // We are only changing the view if there is a current view to change to begin with
         var isChangingView = !!this.currentView;
   
+        // Only destroy the current view if we don't want to `preventDestroy` and if
+        // the view given in the first argument is different than `currentView`
         var _shouldDestroyView = isDifferentView && !preventDestroy;
   
+        // Only show the view given in the first argument if it is different than
+        // the current view or if we want to re-show the view. Note that if
+        // `_shouldDestroyView` is true, then `_shouldShowView` is also necessarily true.
         var _shouldShowView = isDifferentView || forceShow;
   
         if (isChangingView) {
@@ -6492,15 +6648,20 @@
   
         if (_shouldDestroyView) {
           this.empty();
-  
         } else if (isChangingView && _shouldShowView) {
           this.currentView.off('destroy', this.empty, this);
         }
   
         if (_shouldShowView) {
   
+          // We need to listen for if a view is destroyed
+          // in a way other than through the screen.
+          // If this happens we need to remove the reference
+          // to the currentView since once a view has been destroyed
+          // we can not reuse it.
           view.once('destroy', this.empty, this);
-          view.render();
+  
+          this._renderView(view);
   
           view._parent = this;
   
@@ -6515,8 +6676,12 @@
             this.triggerMethod('swapOut', this.currentView, this, options);
           }
   
+          // An array of views that we're about to display
           var attachedScreen = base.isNodeAttached(this.el);
   
+          // The views that we're about to attach to the document
+          // It's important that we prevent _getNestedViews from being executed unnecessarily
+          // as it's a potentially-slow method
           var displayedViews = [];
   
           var attachOptions = lang.extend({
@@ -6564,6 +6729,16 @@
         return lang.union([view], lang.result(view, '_getNestedViews') || []);
       },
   
+      _renderView: function(view) {
+        if (!view.supportsRenderLifecycle) {
+          base.triggerMethodOn(view, 'before:render', view);
+        }
+        view.render();
+        if (!view.supportsRenderLifecycle) {
+          base.triggerMethodOn(view, 'render', view);
+        }
+      },
+  
       _ensureElement: function() {
         if (!lang.isObject(this.el)) {
           this.$el = this.getEl(this.el);
@@ -6590,10 +6765,15 @@
         }
       },
   
+      // Override this method to change how the screen finds the DOM
+      // element that it manages. Return a jQuery selector object scoped
+      // to a provided parent el or the document if none exists.
       getEl: function(el) {
         return $(el, base._getValue(this.options.parentEl, this));
       },
   
+      // Override this method to change how the new view is
+      // appended to the `$el` that the screen is managing
       attachHtml: function(view) {
         this.$el.contents().detach();
   
@@ -6603,7 +6783,10 @@
       empty: function(options) {
         var view = this.currentView;
   
-        var preventDestroy = base._getValue(options, 'preventDestroy', this);
+        var emptyOptions = options || {};
+        var preventDestroy = !!emptyOptions.preventDestroy;
+        // If there is no view in the screen
+        // we should not remove anything
         if (!view) {
           return;
         }
@@ -6625,27 +6808,54 @@
         return this;
       },
   
+      // call 'destroy' or 'remove', depending on which is found on the view (if showing a raw View)
       _destroyView: function() {
         var view = this.currentView;
+        if (view.isDestroyed) {
+          return;
+        }
   
-        if (view.destroy && !view.isDestroyed) {
+        if (!view.supportsDestroyLifecycle) {
+          base.triggerMethodOn(view, 'before:destroy', view);
+        }
+        if (view.destroy) {
           view.destroy();
-        } else if (view.remove) {
+        } else {
           view.remove();
   
+          // appending isDestroyed to raw Backbone View allows screens
+          // to throw a ViewDestroyedError for this view
           view.isDestroyed = true;
+        }
+        if (!view.supportsDestroyLifecycle) {
+          base.triggerMethodOn(view, 'destroy', view);
         }
       },
   
+      // Attach an existing view to the screen. This
+      // will not call `render` or `onShow` for the new view,
+      // and will not replace the current HTML for the `el`
+      // of the screen.
       attachView: function(view) {
+        if (this.currentView) {
+          delete this.currentView._parent;
+        }
+        view._parent = this;
         this.currentView = view;
         return this;
       },
   
+      // Checks whether a view is currently present within
+      // the screen. Returns `true` if there is and `false` if
+      // no view is present.
       hasView: function() {
         return !!this.currentView;
       },
   
+      // Reset the screen by destroying any existing view and
+      // clearing out the cached `$el`. The next time a view
+      // is shown via this screen, the screen will re-query the
+      // DOM for the screen's `el`.
       reset: function() {
         this.empty();
   
@@ -6658,6 +6868,7 @@
       }
   
     }, {
+  
       buildScreen: function(screenConfig, DefaultScreenClass) {
         if (lang.isString(screenConfig)) {
           return this._buildScreenFromSelector(screenConfig, DefaultScreenClass);
@@ -6674,12 +6885,15 @@
         throw new Error('Improper screen configuration type.');
       },
   
+      // Build the screen from a string selector like '#foo-screen'
       _buildScreenFromSelector: function(selector, DefaultScreenClass) {
         return new DefaultScreenClass({
           el: selector
         });
       },
   
+      // Build the screen from a configuration object
+      // { selector: '#foo', screenClass: FooScreen, allowMissingEl: false }
       _buildScreenFromObject: function(screenConfig, DefaultScreenClass) {
         var ScreenClass = screenConfig.screenClass || DefaultScreenClass;
         var options = lang.omit(screenConfig, 'selector', 'screenClass');
@@ -6691,9 +6905,11 @@
         return new ScreenClass(options);
       },
   
+      // Build the screen directly from a given `ScreenClass`
       _buildScreenFromScreenClass: function(ScreenClass) {
         return new ScreenClass();
       }
+  
     });
   
     module.exports = Screen;
@@ -6831,6 +7047,10 @@
         this.addScreens(this.getOption('screens'));
       },
   
+      // Add multiple screens using an object literal or a
+      // function that returns an object literal, where
+      // each key becomes the screen name, and each value is
+      // the screen definition.
       addScreens: function(screenDefinitions, defaults) {
         screenDefinitions = base._getValue(screenDefinitions, this, arguments);
   
@@ -6849,6 +7069,8 @@
         }, {}, this);
       },
   
+      // Add an individual screen to the screen manager,
+      // and return the screen instance
       addScreen: function(name, definition) {
         var screen;
   
@@ -6867,14 +7089,18 @@
         return screen;
       },
   
+      // Get a screen by name
       get: function(name) {
         return this._screens[name];
       },
   
+      // Gets all the screens contained within
+      // the `screenManager` instance.
       getScreens: function() {
         return lang.clone(this._screens);
       },
   
+      // Remove a screen by name
       removeScreen: function(name) {
         var screen = this._screens[name];
         this._remove(name, screen);
@@ -6882,6 +7108,8 @@
         return screen;
       },
   
+      // Empty all screens in the screen manager, and
+      // remove them
       removeScreens: function() {
         var screens = this.getScreens();
         lang.each(this._screens, function(screen, name) {
@@ -6891,6 +7119,8 @@
         return screens;
       },
   
+      // Empty all screens in the screen manager, but
+      // leave them attached
       emptyScreens: function() {
         var screens = this.getScreens();
         lang.invoke(screens, 'empty');
@@ -6899,9 +7129,16 @@
   
       destroy: function() {
         this.removeScreens();
-        return Class.prototype.destroy.apply(this, arguments);
+  
+        base._triggerMethod(this, 'before:destroy', arguments);
+        base._triggerMethod(this, 'destroy', arguments);
+  
+        this.stopListening();
+        this.off();
+        return this;
       },
   
+      // internal method to store screens
       _store: function(name, screen) {
         if (!this._screens[name]) {
           this.length++;
@@ -6910,6 +7147,7 @@
         this._screens[name] = screen;
       },
   
+      // internal method to remove a screen
       _remove: function(name, screen) {
         this.triggerMethod('before:remove:screen', name, screen);
         screen.empty();
@@ -6920,6 +7158,7 @@
         this.length--;
         this.triggerMethod('remove:screen', name, screen);
       }
+  
     });
   
     module.exports = ScreenManager;
@@ -6930,6 +7169,7 @@
   
     var lang = require('mob/lang');
     var $ = require('mob/jqlite');
+    var base = require('mob/base');
     var Logger = require('mob/logger');
     var View = require('mob/view');
     var ScreenComponent = require('mob/screenComponent');
@@ -6941,8 +7181,16 @@
   
       className: 'mo-screen-view',
   
-      initialize : function() {
+      constructor: function(options) {
+        this.render = lang.bind(this.render, this);
+  
+        options = base._getValue(options, this);
+  
+        View.call(this, options);
+  
         ScreenComponent.add(this);
+        base.monitorDOMRefresh(this);
+  
       },
   
       initScroller: function() {
@@ -6969,6 +7217,26 @@
         setTimeout(function() {
           self.scroller && self.scroller.refresh();
         }, 300);
+      },
+  
+      destroy: function() {
+  
+        if (this.isDestroyed) {
+          return this;
+        }
+  
+        var args = lang.toArray(arguments);
+  
+        this.triggerMethod.apply(this, ['before:destroy'].concat(args));
+  
+        this.isDestroyed = true;
+        this.triggerMethod.apply(this, ['destroy'].concat(args));
+  
+        this.isRendered = false;
+  
+        this.remove();
+  
+        return this;
       }
   
     });
@@ -7274,59 +7542,127 @@
     var Class = require('mob/class');
     var Router = require('mob/router');
     var ScreenManager = require('mob/screenManager');
+    var Storage = require('mob/storage');
   
     var Application = Class.extend({
   
       constructor: function(options) {
-        this._initializeScreens(options);
+        this._initScreens(options);
   
         this.appRouter = new Router();
+        this.appCache = new Storage({
+          name: 'appCache',
+          type: 'memory'
+        });
   
-        if (options && options.routers) {
-          this._initializeRouters(options.routers);
-        }
+        this._initRouters(options);
   
-        lang.defaults(this, options);
-  
-        Class.call(this, options);
+        lang.extend(this, options);
+        Class.apply(this, arguments);
       },
   
+      // kick off all of the application's processes.
+      // initializes all of the screens that have been added
+      // to the app, and runs all of the initializer functions
       start: function(options) {
+  
+        options = lang.extend({
+          autoRunRouter: true
+        }, options || {});
+  
         this.triggerMethod('before:start', options);
+        options.autoRunRouter && this.appRouter.run();
         this.triggerMethod('start', options);
       },
   
+      getLocalStorage: function() {
+        return this._initStorage('local');
+      },
+  
+      getSessionStorage: function() {
+        return this._initStorage('session');
+      },
+  
+      getCookie: function() {
+        return this._initStorage('cookie');
+      },
+  
+      // Add screens to your app.
+      // Accepts a hash of named strings or Screen objects
+      // addScreens({something: "#someScreen"})
+      // addScreens({something: Screen.extend({el: "#someScreen"}) });
       addScreens: function(screens) {
         return this._screenManager.addScreens(screens);
       },
   
+      // Empty all screens in the app, without removing them
       emptyScreens: function() {
         return this._screenManager.emptyScreens();
       },
   
+      // Removes a screen from your app, by name
+      // Accepts the screens name
+      // removeScreen('myScreen')
       removeScreen: function(screen) {
         return this._screenManager.removeScreen(screen);
       },
   
+      // Provides alternative access to screens
+      // Accepts the screen name
+      // getScreen('main')
       getScreen: function(screen) {
         return this._screenManager.get(screen);
       },
   
+      // Get all the screens from the screen manager
       getScreens: function() {
         return this._screenManager.getScreens();
       },
   
+      // Enable easy overriding of the default `ScreenManager`
+      // for customized screen interactions and business-specific
+      // view logic for better control over single screens.
       getScreenManager: function() {
         return new ScreenManager();
       },
   
-      _initializeRouters: function(routers) {
+      addRouters: function(routers) {
         for (var matcher in routers) {
-          this.appRouter.addRoute(matcher, routers[matcher]);
+          this.addRouter(matcher, routers[matcher]);
         }
+        return this;
       },
   
-      _initializeScreens: function(options) {
+      addRouter: function(matcher, router) {
+        this.appRouter.addRoute(matcher, router);
+        return this;
+      },
+  
+      redirect: function(url) {
+        this.appRouter.redirect(url);
+        return this;
+      },
+  
+      _initRouters: function(options) {
+  
+        var routers = lang.isFunction(this.routers) ? this.routers(options) : this.routers || {};
+  
+        var optionRouters = base.getOption(options, 'routers');
+  
+        if (lang.isFunction(optionRouters)) {
+          optionRouters = optionRouters.call(this, options);
+        }
+  
+        lang.extend(routers, optionRouters);
+  
+        this.addRouters(routers);
+  
+        return this;
+      },
+  
+      // Internal method to initialize the screens that have been defined in a
+      // `screens` attribute on the application instance
+      _initScreens: function(options) {
         var screens = lang.isFunction(this.screens) ? this.screens(options) : this.screens || {};
   
         this._initScreenManager();
@@ -7347,6 +7683,7 @@
         return this;
       },
   
+      // Internal method to set up the screen manager
       _initScreenManager: function() {
         this._screenManager = this.getScreenManager();
         this._screenManager._parent = this;
@@ -7368,7 +7705,19 @@
           delete this[name];
           base._triggerMethod(this, 'remove:screen', arguments);
         });
+      },
+  
+      _initStorage: function(type) {
+        var storageCache = '__app' + type + 'storage';
+        if (!this[storageCache]) {
+          this[storageCache] = new Storage({
+            name: storageCache,
+            type: type
+          });
+        }
+        return this[storageCache];
       }
+  
     });
   
     module.exports = Application;

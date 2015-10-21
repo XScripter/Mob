@@ -10,7 +10,7 @@ define('mob/application', function(require, exports, module) {
   var Application = Class.extend({
 
     constructor: function(options) {
-      this._initializeScreens(options);
+      this._initScreens(options);
 
       this.appRouter = new Router();
       this.appCache = new Storage({
@@ -18,7 +18,7 @@ define('mob/application', function(require, exports, module) {
         type: 'memory'
       });
 
-      this._initializeRouters(options);
+      this._initRouters(options);
 
       lang.extend(this, options);
       Class.apply(this, arguments);
@@ -106,7 +106,7 @@ define('mob/application', function(require, exports, module) {
       return this;
     },
 
-    _initializeRouters: function(options) {
+    _initRouters: function(options) {
 
       var routers = lang.isFunction(this.routers) ? this.routers(options) : this.routers || {};
 
@@ -125,7 +125,7 @@ define('mob/application', function(require, exports, module) {
 
     // Internal method to initialize the screens that have been defined in a
     // `screens` attribute on the application instance
-    _initializeScreens: function(options) {
+    _initScreens: function(options) {
       var screens = lang.isFunction(this.screens) ? this.screens(options) : this.screens || {};
 
       this._initScreenManager();

@@ -3,16 +3,12 @@ define('mob/screenView', function(require, exports, module) {
   var lang = require('mob/lang');
   var $ = require('mob/jqlite');
   var base = require('mob/base');
-
   var Logger = require('mob/logger');
   var View = require('mob/view');
   var ScreenComponent = require('mob/screenComponent');
   var Scroller = require('mob/scroller');
-  var Template = require('mob/template');
 
   var ScreenView = View.extend({
-
-    isDestroyed: false,
 
     tagName: 'div',
 
@@ -28,15 +24,6 @@ define('mob/screenView', function(require, exports, module) {
       ScreenComponent.add(this);
       base.monitorDOMRefresh(this);
 
-    },
-
-    getTemplate: function() {
-      return this.getOption('template');
-    },
-
-    registerTemplateHelpers: function() {
-      var templateHelpers = this.getOption('templateHelpers');
-      Template.registerHelpers(templateHelpers);
     },
 
     initScroller: function() {
@@ -83,17 +70,8 @@ define('mob/screenView', function(require, exports, module) {
       this.remove();
 
       return this;
-    },
+    }
 
-    mergeOptions: base.mergeOptions,
-
-    triggerMethod: base._triggerMethod,
-
-    getOption: base.proxyGetOption,
-
-    bindEntityEvents: base.proxyBindEntityEvents,
-
-    unbindEntityEvents: base.proxyUnbindEntityEvents
   });
 
   module.exports = ScreenView;

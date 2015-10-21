@@ -4,6 +4,8 @@ define('mob/view', function(require, exports, module) {
   var $ = require('mob/jqlite');
   var Events = require('mob/events');
   var base = require('mob/base');
+  var Error = require('mob/error');
+  var Template = require('mob/template');
 
   var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 
@@ -17,6 +19,8 @@ define('mob/view', function(require, exports, module) {
   };
 
   lang.extend(View.prototype, Events, {
+
+    isDestroyed: false,
 
     tagName: 'div',
 
@@ -42,6 +46,19 @@ define('mob/view', function(require, exports, module) {
 
     render: function() {
       return this;
+    },
+
+    getTemplate: function() {
+      return this.getOption('template');
+    },
+
+    registerTemplateHelpers: function() {
+      var templateHelpers = this.getOption('templateHelpers');
+
+      if (lang.isObject(templateHelpers)) {
+        Template.registerHelpers(templateHelpers);
+      }
+
     },
 
     remove: function() {
@@ -125,7 +142,36 @@ define('mob/view', function(require, exports, module) {
 
     _setAttributes: function(attributes) {
       this.$el.attr(attributes);
-    }
+    },
+
+    _ensureViewIsIntact: function() {
+      if (this.isDestroyed) {
+        throw new Error('View (cid: "' + this.cid + '") has already been destroyed and cannot be used.');
+      }
+    },
+
+    destroy: function() {
+
+      if (this.isDestroyed) {
+        return this;
+      }
+
+      this.isDestroyed = true;
+
+      this.remove();
+
+      return this;
+    },
+
+    mergeOptions: base.mergeOptions,
+
+    triggerMethod: base._triggerMethod,
+
+    getOption: base.proxyGetOption,
+
+    bindEntityEvents: base.proxyBindEntityEvents,
+
+    unbindEntityEvents: base.proxyUnbindEntityEvents
 
   });
 
