@@ -35,7 +35,7 @@ define('mob/application', function(require, exports, module) {
 
       var logPrefix = (options && options.logPrefix) || '[Mob Application]';
 
-      options = extendFn({
+      var settings = extendFn({
         autoRunRouter: true,
         logLevel: Logger.WARN,
         logFormatter: function (messages, context) {
@@ -49,11 +49,11 @@ define('mob/application', function(require, exports, module) {
       this.triggerMethod('before:start', options);
 
       Logger.useDefaults({
-        logLevel: options.logLevel,
-        formatter: options.logFormatter
+        logLevel: settings.logLevel,
+        formatter: settings.logFormatter
       });
 
-      options.autoRunRouter && this.appRouter.run();
+      settings.autoRunRouter && this.appRouter.run();
 
       this.triggerMethod('start', options);
     },

@@ -6805,31 +6805,8 @@
             this.triggerMethod('swapOut', this.currentView, this, options);
           }
   
-          // An array of views that we're about to display
-          var attachedScreen = base.isNodeAttached(this.el);
-  
-          // The views that we're about to attach to the document
-          // It's important that we prevent _getNestedViews from being executed unnecessarily
-          // as it's a potentially-slow method
-          var displayedViews = [];
-  
-          var attachOptions = lang.extend({
-            triggerBeforeAttach: this.triggerBeforeAttach,
-            triggerAttach: this.triggerAttach
-          }, showOptions);
-  
-          if (attachedScreen && attachOptions.triggerBeforeAttach) {
-            displayedViews = this._displayedViews(view);
-            this._triggerAttach(displayedViews, 'before:');
-          }
-  
           this.attachHtml(view);
           this.currentView = view;
-  
-          if (attachedScreen && attachOptions.triggerAttach) {
-            displayedViews = this._displayedViews(view);
-            this._triggerAttach(displayedViews);
-          }
   
           if (isChangingView) {
             this.triggerMethod('swap', view, this, options);
@@ -6842,20 +6819,6 @@
         }
   
         return this;
-      },
-  
-      triggerBeforeAttach: true,
-      triggerAttach: true,
-  
-      _triggerAttach: function(views, prefix) {
-        var eventName = (prefix || '') + 'attach';
-        lang.each(views, function(view) {
-          base.triggerMethodOn(view, eventName, view, this);
-        }, this);
-      },
-  
-      _displayedViews: function(view) {
-        return lang.union([view], lang.result(view, '_getNestedViews') || []);
       },
   
       _ensureElement: function() {
@@ -7691,7 +7654,7 @@
   
         var logPrefix = (options && options.logPrefix) || '[Mob Application]';
   
-        options = extendFn({
+        var settings = extendFn({
           autoRunRouter: true,
           logLevel: Logger.WARN,
           logFormatter: function (messages, context) {
@@ -7705,11 +7668,11 @@
         this.triggerMethod('before:start', options);
   
         Logger.useDefaults({
-          logLevel: options.logLevel,
-          formatter: options.logFormatter
+          logLevel: settings.logLevel,
+          formatter: settings.logFormatter
         });
   
-        options.autoRunRouter && this.appRouter.run();
+        settings.autoRunRouter && this.appRouter.run();
   
         this.triggerMethod('start', options);
       },
