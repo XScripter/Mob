@@ -106,20 +106,47 @@
 
   });
 
+  QUnit.test('when an object only has the option set on the definition', function(assert) {
+    var target = {foo: 'bar'};
+    var value = base.getOption(target, 'foo');
+
+    assert.deepEqual(value, target.foo);
+  });
+
+  QUnit.test('when an object only has the option set on the options', function(assert) {
+    var target = {options: {foo: 'bar'}};
+    var value = base.getOption(target, 'foo');
+
+    assert.deepEqual(value, target.options.foo);
+  });
+
+  QUnit.test('when an object has the option set on the options, and it is a "falsey" value', function(assert) {
+    var target = {options: {foo: false}};
+    var value = base.getOption(target, 'foo');
+
+    assert.deepEqual(value, target.options.foo);
+  });
+
+  QUnit.test('when an object has the option set on the options, and it is a "undefined" value', function(assert) {
+    var target = {foo: 'bar', options: {foo: undefined}};
+    var value = base.getOption(target, 'foo');
+
+    assert.deepEqual(value, target.foo);
+  });
+
+  QUnit.test('when an object has the option set on both the defininition and options', function(assert) {
+    var target = {foo: 'bar', options: {foo: 'baz'}};
+    var value = base.getOption(target, 'foo');
+
+    assert.deepEqual(value, target.options.foo);
+  });
+
+  QUnit.test('when proxying getOption', function(assert) {
+    var target = {foo: 'bar'};
+    target.getOption = base.proxyGetOption;
+    var value = target.getOption('foo');
+
+    assert.deepEqual(value, target.foo);
+  });
+
 })();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
