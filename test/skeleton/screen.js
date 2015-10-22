@@ -4,11 +4,11 @@
 
   QUnit.module('mob/screen');
 
-  QUnit.test('when creating a new region and no configuration has been provided', function(assert) {
+  QUnit.test('when creating a new screen and no configuration has been provided', function(assert) {
 
     assert.throws(function() {
       return new Mob.Screen();
-    }, 'An "el" must be specified for a region.');
+    }, 'An "el" must be specified for a screen.');
 
   });
 
@@ -74,14 +74,14 @@
       }
     });
 
-    var regionShowSpy = sinon.spy();
-    var regionBeforeShowSpy = sinon.spy();
-    var regionBeforeSwapSpy = sinon.spy();
-    var regionSwapSpy = sinon.spy();
+    var screenShowSpy = sinon.spy();
+    var screenBeforeShowSpy = sinon.spy();
+    var screenBeforeSwapSpy = sinon.spy();
+    var screenSwapSpy = sinon.spy();
     var viewBeforeShowSpy = sinon.spy();
     var viewShowSpy = sinon.spy();
-    var regionEmptySpy = sinon.spy();
-    var regionBeforeEmptySpy = sinon.spy();
+    var screenEmptySpy = sinon.spy();
+    var screenBeforeEmptySpy = sinon.spy();
 
     var view = new MyView();
     var viewRenderSpy = sinon.spy(view, 'render');
@@ -89,19 +89,19 @@
     var viewOnShowSpy = sinon.spy(view, 'onShow');
 
     var myScreen = new MyScreen();
-    var regionOnBeforeShowSpy = sinon.spy(myScreen, 'onBeforeShow');
-    var regionOnShowSpy = sinon.spy(myScreen, 'onShow');
-    var regionOnAttachHtmlSpy = sinon.spy(myScreen, 'attachHtml');
-    var regionOnSwapSpy = sinon.spy(myScreen, 'onSwap');
-    var regionOnBeforeSwapOutSpy = sinon.spy(myScreen, 'onBeforeSwapOut');
-    var regionOnSwapOutSpy = sinon.spy(myScreen, 'onSwapOut');
+    var screenOnBeforeShowSpy = sinon.spy(myScreen, 'onBeforeShow');
+    var screenOnShowSpy = sinon.spy(myScreen, 'onShow');
+    var screenOnAttachHtmlSpy = sinon.spy(myScreen, 'attachHtml');
+    var screenOnSwapSpy = sinon.spy(myScreen, 'onSwap');
+    var screenOnBeforeSwapOutSpy = sinon.spy(myScreen, 'onBeforeSwapOut');
+    var screenOnSwapOutSpy = sinon.spy(myScreen, 'onSwapOut');
 
-    myScreen.on('show', regionShowSpy);
-    myScreen.on('before:show', regionBeforeShowSpy);
-    myScreen.on('before:swap', regionBeforeSwapSpy);
-    myScreen.on('swap', regionSwapSpy);
-    myScreen.on('empty', regionEmptySpy);
-    myScreen.on('before:empty', regionBeforeEmptySpy);
+    myScreen.on('show', screenShowSpy);
+    myScreen.on('before:show', screenBeforeShowSpy);
+    myScreen.on('before:swap', screenBeforeSwapSpy);
+    myScreen.on('swap', screenSwapSpy);
+    myScreen.on('empty', screenEmptySpy);
+    myScreen.on('before:empty', screenBeforeEmptySpy);
     view.on('before:show', viewBeforeShowSpy);
     view.on('show', viewShowSpy);
 
@@ -116,26 +116,26 @@
     assert.ok(myScreen.hasView());
     assert.deepEqual(view._parent, myScreen);
     assert.deepEqual(myScreen.$el[0], myScreen.el);
-    assert.ok(regionOnAttachHtmlSpy.called);
+    assert.ok(screenOnAttachHtmlSpy.called);
 
     assert.ok(viewOnShowSpy.called);
     assert.ok($(view.el).hasClass('onShowClass'));
 
     assert.ok(viewOnShowSpy.calledWith(view, myScreen, showOptions));
 
-    assert.ok(regionOnShowSpy.called);
+    assert.ok(screenOnShowSpy.called);
 
-    assert.ok(regionOnShowSpy.calledWith(view, myScreen, showOptions));
+    assert.ok(screenOnShowSpy.calledWith(view, myScreen, showOptions));
 
-    assert.ok(regionShowSpy.called);
+    assert.ok(screenShowSpy.called);
 
-    assert.ok(regionShowSpy.calledWith(view, myScreen, showOptions));
+    assert.ok(screenShowSpy.calledWith(view, myScreen, showOptions));
 
-    assert.ok(regionBeforeShowSpy.called);
+    assert.ok(screenBeforeShowSpy.called);
 
-    assert.ok(regionBeforeShowSpy.calledWith(view, myScreen, showOptions));
+    assert.ok(screenBeforeShowSpy.calledWith(view, myScreen, showOptions));
 
-    assert.ok(regionOnBeforeShowSpy.calledWith(view, myScreen, showOptions));
+    assert.ok(screenOnBeforeShowSpy.calledWith(view, myScreen, showOptions));
 
     assert.ok(viewBeforeShowSpy.called);
 
@@ -147,21 +147,21 @@
 
     assert.ok(viewShowSpy.calledWith(view, myScreen, showOptions));
 
-    assert.ok(regionBeforeShowSpy.calledBefore(regionOnAttachHtmlSpy));
+    assert.ok(screenBeforeShowSpy.calledBefore(screenOnAttachHtmlSpy));
 
-    assert.ok(regionShowSpy.calledWith(view, myScreen, showOptions));
+    assert.ok(screenShowSpy.calledWith(view, myScreen, showOptions));
 
-    assert.ok(regionShowSpy.calledOn(myScreen));
+    assert.ok(screenShowSpy.calledOn(myScreen));
 
-    assert.ok(!regionBeforeSwapSpy.called);
+    assert.ok(!screenBeforeSwapSpy.called);
 
-    assert.ok(!regionOnBeforeSwapOutSpy.called);
+    assert.ok(!screenOnBeforeSwapOutSpy.called);
 
-    assert.ok(!regionOnSwapOutSpy.called);
+    assert.ok(!screenOnSwapOutSpy.called);
 
-    assert.ok(!regionSwapSpy.called);
+    assert.ok(!screenSwapSpy.called);
 
-    assert.ok(!regionOnSwapSpy.called);
+    assert.ok(!screenOnSwapSpy.called);
 
   });
 
@@ -190,14 +190,14 @@
       }
     });
 
-    var regionShowSpy = sinon.spy();
-    var regionBeforeShowSpy = sinon.spy();
-    var regionBeforeSwapSpy = sinon.spy();
-    var regionSwapSpy = sinon.spy();
+    var screenShowSpy = sinon.spy();
+    var screenBeforeShowSpy = sinon.spy();
+    var screenBeforeSwapSpy = sinon.spy();
+    var screenSwapSpy = sinon.spy();
     var viewBeforeShowSpy = sinon.spy();
     var viewShowSpy = sinon.spy();
-    var regionEmptySpy = sinon.spy();
-    var regionBeforeEmptySpy = sinon.spy();
+    var screenEmptySpy = sinon.spy();
+    var screenBeforeEmptySpy = sinon.spy();
 
     var view = new MyView();
     var viewRenderSpy = sinon.spy(view, 'render');
@@ -205,19 +205,19 @@
     var viewOnShowSpy = sinon.spy(view, 'onShow');
 
     var myScreen = new MyScreen();
-    var regionOnBeforeShowSpy = sinon.spy(myScreen, 'onBeforeShow');
-    var regionOnShowSpy = sinon.spy(myScreen, 'onShow');
-    var regionOnAttachHtmlSpy = sinon.spy(myScreen, 'attachHtml');
-    var regionOnSwapSpy = sinon.spy(myScreen, 'onSwap');
-    var regionOnBeforeSwapOutSpy = sinon.spy(myScreen, 'onBeforeSwapOut');
-    var regionOnSwapOutSpy = sinon.spy(myScreen, 'onSwapOut');
+    var screenOnBeforeShowSpy = sinon.spy(myScreen, 'onBeforeShow');
+    var screenOnShowSpy = sinon.spy(myScreen, 'onShow');
+    var screenOnAttachHtmlSpy = sinon.spy(myScreen, 'attachHtml');
+    var screenOnSwapSpy = sinon.spy(myScreen, 'onSwap');
+    var screenOnBeforeSwapOutSpy = sinon.spy(myScreen, 'onBeforeSwapOut');
+    var screenOnSwapOutSpy = sinon.spy(myScreen, 'onSwapOut');
 
-    myScreen.on('show', regionShowSpy);
-    myScreen.on('before:show', regionBeforeShowSpy);
-    myScreen.on('before:swap', regionBeforeSwapSpy);
-    myScreen.on('swap', regionSwapSpy);
-    myScreen.on('empty', regionEmptySpy);
-    myScreen.on('before:empty', regionBeforeEmptySpy);
+    myScreen.on('show', screenShowSpy);
+    myScreen.on('before:show', screenBeforeShowSpy);
+    myScreen.on('before:swap', screenBeforeSwapSpy);
+    myScreen.on('swap', screenSwapSpy);
+    myScreen.on('empty', screenEmptySpy);
+    myScreen.on('before:empty', screenBeforeEmptySpy);
     view.on('before:show', viewBeforeShowSpy);
     view.on('show', viewShowSpy);
 
@@ -231,10 +231,10 @@
 
     var view = myScreen.currentView;
 
-    regionEmptySpy.reset();
-    regionBeforeEmptySpy.reset();
-    regionOnBeforeSwapOutSpy.reset();
-    regionOnSwapOutSpy.reset();
+    screenEmptySpy.reset();
+    screenBeforeEmptySpy.reset();
+    screenOnBeforeSwapOutSpy.reset();
+    screenOnSwapOutSpy.reset();
 
     var view2 = new MyView();
     var otherOptions = {
@@ -242,22 +242,22 @@
     };
     myScreen.show(view2, otherOptions);
 
-    assert.ok(regionBeforeSwapSpy.called);
+    assert.ok(screenBeforeSwapSpy.called);
 
-    assert.ok(regionBeforeSwapSpy.calledWith(view2, myScreen, otherOptions));
+    assert.ok(screenBeforeSwapSpy.calledWith(view2, myScreen, otherOptions));
 
-    assert.ok(regionEmptySpy.calledOnce);
-    assert.ok(regionBeforeEmptySpy.calledOnce);
+    assert.ok(screenEmptySpy.calledOnce);
+    assert.ok(screenBeforeEmptySpy.calledOnce);
 
-    assert.ok(regionSwapSpy.called);
+    assert.ok(screenSwapSpy.called);
 
-    assert.ok(regionSwapSpy.calledWith(view2, myScreen, otherOptions));
+    assert.ok(screenSwapSpy.calledWith(view2, myScreen, otherOptions));
 
-    assert.ok(regionOnSwapSpy.called);
+    assert.ok(screenOnSwapSpy.called);
 
-    assert.ok(regionOnSwapSpy.calledWith(view2, myScreen, otherOptions));
+    assert.ok(screenOnSwapSpy.calledWith(view2, myScreen, otherOptions));
 
-    assert.ok(regionOnSwapSpy.calledOn(myScreen));
+    assert.ok(screenOnSwapSpy.calledOn(myScreen));
 
     assert.ok(myScreen.hasView());
 
@@ -265,13 +265,13 @@
 
     assert.ok(!view._parent);
 
-    assert.ok(regionOnBeforeSwapOutSpy.calledOnce);
-    assert.ok(regionOnBeforeSwapOutSpy.calledOn(myScreen));
-    assert.ok(regionOnBeforeSwapOutSpy.calledWith(view, myScreen, otherOptions));
+    assert.ok(screenOnBeforeSwapOutSpy.calledOnce);
+    assert.ok(screenOnBeforeSwapOutSpy.calledOn(myScreen));
+    assert.ok(screenOnBeforeSwapOutSpy.calledWith(view, myScreen, otherOptions));
 
-    assert.ok(regionOnSwapOutSpy.calledOnce);
-    assert.ok(regionOnSwapOutSpy.calledOn(myScreen));
-    assert.ok(regionOnSwapOutSpy.calledWith(undefined, myScreen, otherOptions));
+    assert.ok(screenOnSwapOutSpy.calledOnce);
+    assert.ok(screenOnSwapOutSpy.calledOn(myScreen));
+    assert.ok(screenOnSwapOutSpy.calledWith(undefined, myScreen, otherOptions));
 
   });
 
@@ -300,14 +300,14 @@
       }
     });
 
-    var regionShowSpy = sinon.spy();
-    var regionBeforeShowSpy = sinon.spy();
-    var regionBeforeSwapSpy = sinon.spy();
-    var regionSwapSpy = sinon.spy();
+    var screenShowSpy = sinon.spy();
+    var screenBeforeShowSpy = sinon.spy();
+    var screenBeforeSwapSpy = sinon.spy();
+    var screenSwapSpy = sinon.spy();
     var viewBeforeShowSpy = sinon.spy();
     var viewShowSpy = sinon.spy();
-    var regionEmptySpy = sinon.spy();
-    var regionBeforeEmptySpy = sinon.spy();
+    var screenEmptySpy = sinon.spy();
+    var screenBeforeEmptySpy = sinon.spy();
 
     var view = new MyView();
     var viewRenderSpy = sinon.spy(view, 'render');
@@ -315,19 +315,19 @@
     var viewOnShowSpy = sinon.spy(view, 'onShow');
 
     var myScreen = new MyScreen();
-    var regionOnBeforeShowSpy = sinon.spy(myScreen, 'onBeforeShow');
-    var regionOnShowSpy = sinon.spy(myScreen, 'onShow');
-    var regionOnAttachHtmlSpy = sinon.spy(myScreen, 'attachHtml');
-    var regionOnSwapSpy = sinon.spy(myScreen, 'onSwap');
-    var regionOnBeforeSwapOutSpy = sinon.spy(myScreen, 'onBeforeSwapOut');
-    var regionOnSwapOutSpy = sinon.spy(myScreen, 'onSwapOut');
+    var screenOnBeforeShowSpy = sinon.spy(myScreen, 'onBeforeShow');
+    var screenOnShowSpy = sinon.spy(myScreen, 'onShow');
+    var screenOnAttachHtmlSpy = sinon.spy(myScreen, 'attachHtml');
+    var screenOnSwapSpy = sinon.spy(myScreen, 'onSwap');
+    var screenOnBeforeSwapOutSpy = sinon.spy(myScreen, 'onBeforeSwapOut');
+    var screenOnSwapOutSpy = sinon.spy(myScreen, 'onSwapOut');
 
-    myScreen.on('show', regionShowSpy);
-    myScreen.on('before:show', regionBeforeShowSpy);
-    myScreen.on('before:swap', regionBeforeSwapSpy);
-    myScreen.on('swap', regionSwapSpy);
-    myScreen.on('empty', regionEmptySpy);
-    myScreen.on('before:empty', regionBeforeEmptySpy);
+    myScreen.on('show', screenShowSpy);
+    myScreen.on('before:show', screenBeforeShowSpy);
+    myScreen.on('before:swap', screenBeforeSwapSpy);
+    myScreen.on('swap', screenSwapSpy);
+    myScreen.on('empty', screenEmptySpy);
+    myScreen.on('before:empty', screenBeforeEmptySpy);
     view.on('before:show', viewBeforeShowSpy);
     view.on('show', viewShowSpy);
 
@@ -337,26 +337,25 @@
       foo: 'bar'
     };
     myScreen.show(view, showOptions);
-    
+
     var MyScreen = Mob.Screen.extend({
       el: '#screen',
       onShow: function() {},
       onSwap: function() {}
     });
-    
+
     var MyView2 = Mob.View.extend({
-      render: function () {
+      render: function() {
         $(this.el).html('some more content');
       },
 
-      destroy: function () {
-      },
+      destroy: function() {},
 
-      onShow: function () {
+      onShow: function() {
         $(this.el).addClass('onShowClass');
       }
     });
-    
+
     var view1 = new MyView();
     var view2 = new MyView2();
     var myScreen = new MyScreen();
@@ -367,7 +366,9 @@
 
     myScreen.show(view1);
 
-    myScreen.show(view2, {preventDestroy: true});
+    myScreen.show(view2, {
+      preventDestroy: true
+    });
     assert.equal(view1.destroy.callCount, (0));
     assert.equal(view1._parent, undefined);
     assert.ok(view1.off.calledOnce);
@@ -402,14 +403,14 @@
       }
     });
 
-    var regionShowSpy = sinon.spy();
-    var regionBeforeShowSpy = sinon.spy();
-    var regionBeforeSwapSpy = sinon.spy();
-    var regionSwapSpy = sinon.spy();
+    var screenShowSpy = sinon.spy();
+    var screenBeforeShowSpy = sinon.spy();
+    var screenBeforeSwapSpy = sinon.spy();
+    var screenSwapSpy = sinon.spy();
     var viewBeforeShowSpy = sinon.spy();
     var viewShowSpy = sinon.spy();
-    var regionEmptySpy = sinon.spy();
-    var regionBeforeEmptySpy = sinon.spy();
+    var screenEmptySpy = sinon.spy();
+    var screenBeforeEmptySpy = sinon.spy();
 
     var view = new MyView();
     var viewRenderSpy = sinon.spy(view, 'render');
@@ -417,19 +418,19 @@
     var viewOnShowSpy = sinon.spy(view, 'onShow');
 
     var myScreen = new MyScreen();
-    var regionOnBeforeShowSpy = sinon.spy(myScreen, 'onBeforeShow');
-    var regionOnShowSpy = sinon.spy(myScreen, 'onShow');
-    var regionOnAttachHtmlSpy = sinon.spy(myScreen, 'attachHtml');
-    var regionOnSwapSpy = sinon.spy(myScreen, 'onSwap');
-    var regionOnBeforeSwapOutSpy = sinon.spy(myScreen, 'onBeforeSwapOut');
-    var regionOnSwapOutSpy = sinon.spy(myScreen, 'onSwapOut');
+    var screenOnBeforeShowSpy = sinon.spy(myScreen, 'onBeforeShow');
+    var screenOnShowSpy = sinon.spy(myScreen, 'onShow');
+    var screenOnAttachHtmlSpy = sinon.spy(myScreen, 'attachHtml');
+    var screenOnSwapSpy = sinon.spy(myScreen, 'onSwap');
+    var screenOnBeforeSwapOutSpy = sinon.spy(myScreen, 'onBeforeSwapOut');
+    var screenOnSwapOutSpy = sinon.spy(myScreen, 'onSwapOut');
 
-    myScreen.on('show', regionShowSpy);
-    myScreen.on('before:show', regionBeforeShowSpy);
-    myScreen.on('before:swap', regionBeforeSwapSpy);
-    myScreen.on('swap', regionSwapSpy);
-    myScreen.on('empty', regionEmptySpy);
-    myScreen.on('before:empty', regionBeforeEmptySpy);
+    myScreen.on('show', screenShowSpy);
+    myScreen.on('before:show', screenBeforeShowSpy);
+    myScreen.on('before:swap', screenBeforeSwapSpy);
+    myScreen.on('swap', screenSwapSpy);
+    myScreen.on('empty', screenEmptySpy);
+    myScreen.on('before:empty', screenBeforeEmptySpy);
     view.on('before:show', viewBeforeShowSpy);
     view.on('show', viewShowSpy);
 
@@ -448,14 +449,13 @@
     });
 
     var MyView2 = Mob.View.extend({
-      render: function () {
+      render: function() {
         $(this.el).html('some more content');
       },
 
-      destroy: function () {
-      },
+      destroy: function() {},
 
-      onShow: function () {
+      onShow: function() {
         $(this.el).addClass('onShowClass');
       }
     });
@@ -470,7 +470,9 @@
 
     myScreen.show(view1);
 
-    myScreen.show(view2, {preventDestroy: false});
+    myScreen.show(view2, {
+      preventDestroy: false
+    });
     assert.ok(view1.destroy.called);
     assert.equal(view1._parent, undefined);
 
@@ -526,11 +528,194 @@
     sinon.spy(view, 'destroy');
     sinon.spy(myScreen, 'attachHtml');
     sinon.spy(view, 'render');
-    myScreen.show(view, {forceShow: true});
+    myScreen.show(view, {
+      forceShow: true
+    });
 
     assert.ok(myScreen.attachHtml.calledWith(view));
     assert.ok(view.render.called);
 
   });
+
+  // build-screen
+
+  QUnit.test('buildScreen with a selector string', function(assert) {
+
+    var DefaultScreenClass = Mob.Screen.extend();
+
+    var fooSelector = '#foo-screen';
+    var fooScreen = new DefaultScreenClass({
+      el: fooSelector
+    });
+    var barSelector = '#bar-screen';
+    var BarScreen = Mob.Screen.extend({
+      el: barSelector
+    });
+    var barScreen = new BarScreen();
+    var BazScreen = Mob.Screen.extend();
+
+    var screen = Mob.Screen.buildScreen(fooSelector, DefaultScreenClass);
+
+    assert.deepEqual(screen, fooScreen);
+
+    assert.ok(screen instanceof DefaultScreenClass);
+
+    assert.deepEqual(screen.el, $(fooSelector)[0]);
+
+  });
+
+  QUnit.test('buildScreen with a screen class', function(assert) {
+
+    var DefaultScreenClass = Mob.Screen.extend();
+
+    var fooSelector = '#foo-screen';
+    var fooScreen = new DefaultScreenClass({
+      el: fooSelector
+    });
+    var barSelector = '#bar-screen';
+    var BarScreen = Mob.Screen.extend({
+      el: barSelector
+    });
+    var barScreen = new BarScreen();
+    var BazScreen = Mob.Screen.extend();
+
+    var screen = Mob.Screen.buildScreen(BarScreen, DefaultScreenClass);
+
+    assert.deepEqual(screen, barScreen);
+
+    assert.ok(screen instanceof BarScreen);
+
+    assert.deepEqual(screen.el, $(barSelector)[0]);
+
+  });
+
+  QUnit.test('buildScreen with an object literal', function(assert) {
+
+    var DefaultScreenClass = Mob.Screen.extend();
+
+    var fooSelector = '#foo-screen';
+    var fooScreen = new DefaultScreenClass({
+      el: fooSelector
+    });
+    var barSelector = '#bar-screen';
+    var BarScreen = Mob.Screen.extend({
+      el: barSelector
+    });
+    var barScreen = new BarScreen();
+    var BazScreen = Mob.Screen.extend();
+
+    var definition = {
+      selector: fooSelector
+    };
+    var screen = Mob.Screen.buildScreen(definition, DefaultScreenClass);
+
+    assert.deepEqual(screen, fooScreen);
+
+    assert.ok(screen instanceof DefaultScreenClass);
+
+    assert.deepEqual(screen.el, $(fooSelector)[0]);
+
+  });
+
+  QUnit.test('buildScreen with an object literal .', function(assert) {
+
+    var DefaultScreenClass = Mob.Screen.extend();
+
+    var fooSelector = '#foo-screen';
+    var fooScreen = new DefaultScreenClass({
+      el: fooSelector
+    });
+    var barSelector = '#bar-screen';
+    var BarScreen = Mob.Screen.extend({
+      el: barSelector
+    });
+    var barScreen = new BarScreen();
+    var BazScreen = Mob.Screen.extend();
+
+    var definition = {
+      el: fooSelector
+    };
+    var screen = Mob.Screen.buildScreen(definition, DefaultScreenClass);
+
+    assert.deepEqual(screen, fooScreen);
+
+    assert.ok(screen instanceof DefaultScreenClass);
+
+    assert.deepEqual(screen.el, $(fooSelector)[0]);
+
+  });
+
+  QUnit.test('buildScreen with an object literal .', function(assert) {
+
+    var DefaultScreenClass = Mob.Screen.extend();
+
+    var fooSelector = '#foo-screen';
+    var fooScreen = new DefaultScreenClass({
+      el: fooSelector
+    });
+    var barSelector = '#bar-screen';
+    var BarScreen = Mob.Screen.extend({
+      el: barSelector
+    });
+    var barScreen = new BarScreen();
+    var BazScreen = Mob.Screen.extend();
+
+    var el = $('<div id="baz-screen">')[0];
+    var bazScreen = new DefaultScreenClass({
+      el: el
+    });
+    var definition = {
+      el: el
+    };
+    var screen = Mob.Screen.buildScreen(definition, DefaultScreenClass);
+
+    assert.deepEqual(screen, bazScreen);
+
+    assert.ok(screen instanceof DefaultScreenClass);
+
+    assert.deepEqual(screen.el, el);
+
+    var parentEl = $('<div id="not-actual-parent"></div>');
+    definition = Mob.defaults({
+      parentEl: parentEl
+    }, definition);
+    screen = Mob.Screen.buildScreen(definition, DefaultScreenClass);
+
+    assert.deepEqual(screen.getEl(el), $(el));
+
+  });
+
+  QUnit.test('buildScreen with an object literal .', function(assert) {
+
+    var DefaultScreenClass = Mob.Screen.extend();
+
+    var fooSelector = '#foo-screen';
+    var fooScreen = new DefaultScreenClass({
+      el: fooSelector
+    });
+    var barSelector = '#bar-screen';
+    var BarScreen = Mob.Screen.extend({
+      el: barSelector
+    });
+    var barScreen = new BarScreen();
+    var BazScreen = Mob.Screen.extend();
+
+    var el = $('<div id="baz-screen">');
+    var bazScreen = new DefaultScreenClass({
+      el: el
+    });
+    var definition = {
+      el: el
+    };
+    var screen = Mob.Screen.buildScreen(definition, DefaultScreenClass);
+
+    assert.deepEqual(screen, bazScreen);
+
+    assert.ok(screen instanceof DefaultScreenClass);
+
+    assert.deepEqual(screen.el, el[0]);
+
+  });
+
 
 }());
