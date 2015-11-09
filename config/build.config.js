@@ -108,6 +108,7 @@ module.exports = {
       'src/scripts/skeleton/screen.js',
       'src/scripts/skeleton/screenComponent.js',
       'src/scripts/skeleton/screenManager.js',
+      'src/scripts/skeleton/screenTransition.js',
       'src/scripts/skeleton/screenView.js',
       'src/scripts/skeleton/router.js',
       'src/scripts/skeleton/application.js',
