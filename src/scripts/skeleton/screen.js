@@ -5,6 +5,7 @@ define('mob/screen', function(require, exports, module) {
   var base = require('mob/base');
   var Class = require('mob/class');
   var Error = require('mob/error');
+  var ScreenTransition = require('mob/screenTransition');
 
   var Screen = Class.extend({
 
@@ -23,6 +24,17 @@ define('mob/screen', function(require, exports, module) {
       Class.call(this, options);
     },
 
+    _toggleScreen: function() {
+      var self = this;
+      var transition = self.$el.attr('mob-transition');
+      if (transition !== 'none') {
+        ScreenTransition.goTo(self.$el, transition || 'slideleft', location.hash);
+      } else {
+        self.$el.siblings().removeClass('current');
+        self.$el.addClass('current');
+      }
+    },
+
     // Displays a Mob view instance inside of the screen.
     // Handles calling the `render` method for you. Reads content
     // directly from the `el` attribute. Also calls an optional
@@ -39,6 +51,8 @@ define('mob/screen', function(require, exports, module) {
 
       this._ensureViewIsIntact(view);
       base.monitorDOMRefresh(view);
+
+      this._toggleScreen();
 
       var showOptions = options || {};
       var isDifferentView = view !== this.currentView;
