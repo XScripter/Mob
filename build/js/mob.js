@@ -10,7 +10,7 @@
  * 
  * Licensed under MIT
  * 
- * Released on: October 22, 2015
+ * Released on: November 9, 2015
  */
 (function(factory) {
   var root = (typeof self == 'object' && self.self == self && self) ||
